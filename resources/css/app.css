@@ -1,0 +1,102 @@
+/* Light and dark from one set of variables, following the OS preference.
+   An admin tool is read far more than it is clicked, so the type is small,
+   the density is high, and colour is reserved for status. */
+#impex {
+    --bg: #ffffff;
+    --surface: #f7f7f8;
+    --border: #e3e3e6;
+    --text: #1a1a1e;
+    --muted: #6b6b76;
+    --accent: #3b5bdb;
+    --ok: #2f7a4d;
+    
+    --warn: #8a6100;
+    --bad: #b3261e;
+    --info: #2a6f97;
+
+    color: var(--text);
+    background: var(--bg);
+    font: 14px/1.5 ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+    min-height: 100vh;
+}
+
+@media (prefers-color-scheme: dark) {
+    #impex {
+        --bg: #16161a;
+        --surface: #1e1e24;
+        --border: #2e2e37;
+        --text: #e8e8ec;
+        --muted: #9a9aa6;
+        --accent: #8ba4ff;
+        --ok: #6cc48c;
+        --warn: #e0b155;
+        --bad: #ef8a80;
+        --info: #7bbde0;
+    }
+}
+
+#impex * { box-sizing: border-box; }
+#impex a { color: var(--accent); text-decoration: none; }
+#impex a:hover { text-decoration: underline; }
+
+.impex-shell { max-width: 1180px; margin: 0 auto; padding: 24px 20px 64px; }
+.impex-nav { display: flex; gap: 4px; align-items: baseline; border-bottom: 1px solid var(--border); padding-bottom: 12px; margin-bottom: 24px; flex-wrap: wrap; }
+.impex-nav h1 { font-size: 15px; font-weight: 600; margin: 0 20px 0 0; letter-spacing: -0.01em; }
+.impex-nav a { padding: 4px 10px; border-radius: 5px; color: var(--muted); font-weight: 500; }
+.impex-nav a:hover { background: var(--surface); text-decoration: none; }
+.impex-nav a.router-link-active { color: var(--text); background: var(--surface); }
+
+h2 { font-size: 15px; font-weight: 600; margin: 0 0 12px; }
+h3 { font-size: 13px; font-weight: 600; margin: 24px 0 8px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.04em; }
+
+table { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; }
+th { text-align: left; font-size: 12px; font-weight: 500; color: var(--muted); padding: 6px 10px; border-bottom: 1px solid var(--border); white-space: nowrap; }
+td { padding: 8px 10px; border-bottom: 1px solid var(--border); vertical-align: top; }
+tbody tr:hover { background: var(--surface); }
+td.mono, .mono { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12px; }
+td.num { text-align: right; }
+
+.chip { display: inline-block; padding: 1px 7px; border-radius: 999px; font-size: 11px; font-weight: 600; border: 1px solid transparent; white-space: nowrap; }
+/* Status carries a label as well as a colour: colour alone is not an
+   accessible signal. */
+.chip-completed { color: var(--ok); border-color: color-mix(in srgb, var(--ok) 35%, transparent); background: color-mix(in srgb, var(--ok) 10%, transparent); }
+.chip-failed    { color: var(--bad); border-color: color-mix(in srgb, var(--bad) 35%, transparent); background: color-mix(in srgb, var(--bad) 10%, transparent); }
+.chip-running, .chip-pending { color: var(--info); border-color: color-mix(in srgb, var(--info) 35%, transparent); background: color-mix(in srgb, var(--info) 10%, transparent); }
+.chip-waiting, .chip-compensating { color: var(--warn); border-color: color-mix(in srgb, var(--warn) 40%, transparent); background: color-mix(in srgb, var(--warn) 12%, transparent); }
+.chip-cancelled, .chip-skipped { color: var(--muted); border-color: var(--border); background: var(--surface); }
+.chip-inbound { color: var(--info); border-color: color-mix(in srgb, var(--info) 35%, transparent); }
+.chip-outbound { color: var(--accent); border-color: color-mix(in srgb, var(--accent) 35%, transparent); }
+
+.filters { display: flex; gap: 8px; margin-bottom: 16px; flex-wrap: wrap; }
+input, select, textarea { font: inherit; color: var(--text); background: var(--bg); border: 1px solid var(--border); border-radius: 6px; padding: 5px 8px; }
+input:focus, select:focus, textarea:focus { outline: 2px solid var(--accent); outline-offset: -1px; }
+
+button { font: inherit; font-weight: 500; color: var(--text); background: var(--surface); border: 1px solid var(--border); border-radius: 6px; padding: 5px 12px; cursor: pointer; }
+button:hover:not(:disabled) { border-color: var(--muted); }
+button:disabled { opacity: 0.5; cursor: not-allowed; }
+button.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+
+.panel { border: 1px solid var(--border); border-radius: 8px; padding: 14px 16px; background: var(--surface); margin-bottom: 16px; }
+.kv { display: grid; grid-template-columns: max-content 1fr; gap: 4px 20px; font-size: 13px; }
+.kv dt { color: var(--muted); }
+.kv dd { margin: 0; }
+
+pre { background: var(--surface); border: 1px solid var(--border); border-radius: 6px; padding: 10px 12px; overflow: auto; font-size: 12px; margin: 0; max-height: 380px; }
+
+.muted { color: var(--muted); }
+.error { color: var(--bad); border: 1px solid color-mix(in srgb, var(--bad) 35%, transparent); background: color-mix(in srgb, var(--bad) 8%, transparent); border-radius: 6px; padding: 10px 12px; margin-bottom: 16px; }
+.actions { display: flex; gap: 8px; margin: 12px 0 20px; flex-wrap: wrap; }
+.empty { color: var(--muted); padding: 32px 0; text-align: center; }
+
+/* The step timeline: a rail down the left, one node per recorded step. */
+.timeline { list-style: none; margin: 0; padding: 0; }
+.timeline li { position: relative; padding: 0 0 14px 22px; border-left: 2px solid var(--border); }
+.timeline li:last-child { border-left-color: transparent; padding-bottom: 0; }
+.timeline li::before { content: ''; position: absolute; left: -6px; top: 4px; width: 10px; height: 10px; border-radius: 50%; background: var(--bg); border: 2px solid var(--muted); }
+.timeline li.is-completed::before { border-color: var(--ok); background: var(--ok); }
+.timeline li.is-failed::before { border-color: var(--bad); background: var(--bad); }
+.timeline li.is-running::before, .timeline li.is-pending::before { border-color: var(--info); }
+.timeline li.is-compensation { border-left-style: dashed; }
+.step-head { display: flex; gap: 8px; align-items: baseline; flex-wrap: wrap; }
+.step-name { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12px; }
+.step-meta { font-size: 12px; color: var(--muted); }

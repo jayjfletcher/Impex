@@ -1,0 +1,114 @@
+{
+    "$schema": "https://getcomposer.org/schema.json",
+    "name": "jayi/impex",
+    "description": "Workflow engine and data-flow ledger for Laravel, built for Vapor",
+    "keywords": [
+        "laravel",
+        "jayi",
+        "impex",
+        "workflow",
+        "saga",
+        "vapor"
+    ],
+    "homepage": "https://github.com/jayi/impex",
+    "license": "MIT",
+    "authors": [
+        {
+            "name": "Jay Fletcher",
+            "email": "jayjfletcher@gmail.com",
+            "role": "Developer"
+        }
+    ],
+    "require": {
+        "php": "^8.4",
+        "illuminate/support": "^13.15",
+        "laravel/mcp": "^0.9"
+    },
+    "require-dev": {
+        "larastan/larastan": "^3.9",
+        "laravel/pao": "^1.0",
+        "laravel/pint": "^1.29",
+        "orchestra/testbench": "^11.0",
+        "pestphp/pest": "^5.0",
+        "pestphp/pest-plugin-laravel": "^5.0",
+        "pestphp/pest-plugin-type-coverage": "^5.0",
+        "phpstan/extension-installer": "^1.4"
+    },
+    "autoload": {
+        "psr-4": {
+            "JayI\\Impex\\": "src/"
+        }
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "JayI\\Impex\\Database\\Factories\\": "database/factories/",
+            "JayI\\Impex\\Tests\\": "tests/",
+            "Workbench\\App\\": "workbench/app/",
+            "Workbench\\Database\\Factories\\": "workbench/database/factories/",
+            "Workbench\\Database\\Seeders\\": "workbench/database/seeders/"
+        },
+        "files": [
+            "tests/Fixtures/Flows.php"
+        ]
+    },
+    "scripts": {
+        "post-autoload-dump": [
+            "@clear",
+            "@prepare"
+        ],
+        "prepare": [
+            "@php vendor/bin/testbench package:discover --ansi"
+        ],
+        "build": [
+            "@php vendor/bin/testbench workbench:build --ansi"
+        ],
+        "serve": [
+            "Composer\\Config::disableProcessTimeout",
+            "@build",
+            "@php vendor/bin/testbench serve --ansi"
+        ],
+        "lint": [
+            "vendor/bin/pint --parallel"
+        ],
+        "lint:check": [
+            "vendor/bin/pint --parallel --test"
+        ],
+        "analyse": [
+            "vendor/bin/phpstan analyse"
+        ],
+        "test:types": [
+            "vendor/bin/pest --type-coverage --min=100"
+        ],
+        "test:unit": [
+            "vendor/bin/pest --parallel"
+        ],
+        "test": [
+            "@analyse",
+            "@lint:check",
+            "@test:types",
+            "@test:unit"
+        ],
+        "clear": [
+            "@php vendor/bin/testbench package:purge-skeleton --ansi"
+        ]
+    },
+    "extra": {
+        "laravel": {
+            "providers": [
+                "JayI\\Impex\\ImpexServiceProvider"
+            ],
+            "aliases": {
+                "Impex": "JayI\\Impex\\Facades\\Impex"
+            }
+        }
+    },
+    "config": {
+        "sort-packages": true,
+        "allow-plugins": {
+            "pestphp/pest-plugin": true,
+            "phpstan/extension-installer": true
+        }
+    },
+    "minimum-stability": "stable",
+    "prefer-stable": true
+}
