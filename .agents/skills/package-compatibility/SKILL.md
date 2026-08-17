@@ -10,12 +10,13 @@ metadata:
 
 ## Primary Goal
 
-Keep package code, dependencies, and workflows compatible with the supported Laravel 12/13 and PHP 8.3+ matrix.
+Keep package code, dependencies, and workflows compatible with the supported Laravel 13 and PHP 8.4+ matrix.
 
 ## Workflow
 
 1. Read `composer.json` first to determine PHP, Laravel, and Testbench constraints.
-2. Check changed code against Laravel 12/13 APIs and PHP 8.3+ syntax before adopting newer framework or language features.
+2. Check changed code against Laravel 13 APIs and PHP 8.4+ syntax before adopting newer framework or language features.
+3. The CI matrix must stay in step with `composer.json`. A lane outside its constraints cannot resolve at all: `laravel/framework` replaces `illuminate/support`, so a 12.x framework can never satisfy a `^13` requirement, and the job fails at install rather than at test.
 3. Review `.github/workflows/tests.yml` for dependency stability lanes, prefer-lowest coverage, prefer-stable coverage, and Windows concerns.
 4. When changing dependencies, confirm constraints still allow the intended Laravel and Testbench versions.
 5. Validate with the smallest local command available, then rely on CI for full OS and dependency matrix coverage.

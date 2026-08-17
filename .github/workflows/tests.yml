@@ -21,13 +21,15 @@ jobs:
     strategy:
       fail-fast: true
       matrix:
+        # Must stay in step with composer.json: php ^8.4 and
+        # illuminate/support ^13.15. A lane outside those constraints cannot
+        # resolve — laravel/framework replaces illuminate/support, so a 12.x
+        # framework can never satisfy a ^13 requirement.
         os: [ubuntu-latest, windows-latest]
-        php: [8.3, 8.4, 8.5]
-        laravel: [12.*, 13.*]
+        php: [8.4, 8.5]
+        laravel: [13.*]
         stability: [prefer-lowest, prefer-stable]
         include:
-          - laravel: 12.*
-            testbench: 10.*
           - laravel: 13.*
             testbench: 11.*
 
