@@ -78,6 +78,25 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Deadlines
+    |--------------------------------------------------------------------------
+    |
+    | Default deadlines in seconds, applied when a run or step does not set its
+    | own. Null means no deadline. Enforcement happens in `impex:tick`, not
+    | in-process: a step that has handed control to an upstream call cannot
+    | check a clock, and a killed invocation never gets the chance. A run
+    | that passes its deadline compensates; a step that passes its own
+    | fails and unwinds the run like any other failure.
+    |
+    */
+
+    'deadlines' => [
+        'run' => null,
+        'step' => null,
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
     | Artifacts
     |--------------------------------------------------------------------------
     |

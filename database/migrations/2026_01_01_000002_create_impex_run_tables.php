@@ -28,6 +28,8 @@ return new class extends Migration
             $table->json('tags')->nullable();
             $table->ulid('parent_run_id')->nullable()->index();
             $table->unsignedInteger('parent_sequence')->nullable();
+            // What happens to this child if its parent finishes first.
+            $table->string('close_policy', 16)->nullable();
             $table->string('queue_connection')->nullable();
             $table->string('queue')->nullable();
             $table->timestamp('expires_at')->nullable()->index();
@@ -71,6 +73,9 @@ return new class extends Migration
             $table->ulid('lease_token')->nullable();
             $table->timestamp('leased_until')->nullable()->index();
             $table->unsignedInteger('compensates_sequence')->nullable();
+            // Groups steps declared inside one saga() block, so a rollback can
+            // find a step's peers and apply the group's policy to them.
+            $table->string('saga_group', 26)->nullable()->index();
             $table->timestamp('expires_at')->nullable();
             $table->timestamp('queued_at')->nullable();
             $table->timestamp('started_at')->nullable();

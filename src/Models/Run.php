@@ -13,6 +13,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Carbon;
 use JayI\Impex\Database\Factories\RunFactory;
+use JayI\Impex\Enums\ChildClosePolicy;
 use JayI\Impex\Enums\RunStatus;
 use JayI\Impex\Enums\RunTrigger;
 use JayI\Impex\Enums\StepPhase;
@@ -33,6 +34,7 @@ use JayI\Impex\Enums\StepPhase;
  * @property array<string, string>|null $tags
  * @property string|null $parent_run_id
  * @property int|null $parent_sequence
+ * @property ChildClosePolicy|null $close_policy
  * @property string|null $queue_connection
  * @property string|null $queue
  * @property Carbon|null $expires_at
@@ -66,6 +68,7 @@ final class Run extends Model
         'tags',
         'parent_run_id',
         'parent_sequence',
+        'close_policy',
         'queue_connection',
         'queue',
         'expires_at',
@@ -247,6 +250,7 @@ final class Run extends Model
         return [
             'status' => RunStatus::class,
             'trigger' => RunTrigger::class,
+            'close_policy' => ChildClosePolicy::class,
             'input' => 'array',
             'result' => 'array',
             'error' => 'array',

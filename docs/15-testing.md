@@ -1,5 +1,46 @@
 # Testing flows
 
+## The shipped helpers
+
+```php
+use JayI\Impex\Testing\Flows;
+
+it('extracts products', function (): void {
+    $run = Flows::run('extract-products', ['drill bits', 5]);
+
+    Flows::assertCompleted($run);
+    Flows::assertStepRan($run, SearchProducts::class, times: 1);
+    Flows::assertStepDidNotRun($run, RollbackPimWrite::class);
+    Flows::assertForwardStepCount($run, 3);
+});
+```
+
+| Helper | Purpose |
+|---|---|
+| `Flows::run($slug, $args)` | Start and drive to completion in-process. No worker needed. |
+| `Flows::travelTo($moment)` | Move the clock forward and run the sweep — how you test a timeout, a sleep, or a deadline. |
+| `Flows::assertCompleted/assertFailed/assertWaiting` | Status, with the run's error in the failure message. |
+| `Flows::assertStepRan($run, $action, $times)` | An action ran, optionally exactly N times. |
+| `Flows::assertStepDidNotRun` | It did not. |
+| `Flows::assertCompensated($run, $action)` | A rollback completed. |
+| `Flows::assertNotCompensated` | Nothing rolled back. |
+| `Flows::assertForwardStepCount` | Pin the cost of a flow — a batch should stay at one step however many items it processes. |
+| `Flows::assertAwaitingSignal($run, $name)` | Parked on a named signal. |
+| `Flows::redeliverSteps($run)` | Re-run every recorded step's job, as at-least-once delivery would. |
+
+The one worth writing for every flow that touches a non-idempotent upstream:
+
+```php
+it('does not repeat a side effect when jobs are redelivered', function (): void {
+    $run = Flows::run('checkout', ['order-1']);
+
+    Flows::redeliverSteps($run);
+    Flows::redeliverSteps($run);
+
+    Flows::assertStepRan($run, ChargeCard::class, times: 1);
+});
+```
+
 ## The deterministic harness
 
 The `sync` queue driver drives a run to completion inside one call: a drive

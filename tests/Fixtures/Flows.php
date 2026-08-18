@@ -6,6 +6,8 @@ namespace JayI\Impex\Tests\Fixtures;
 
 use JayI\Impex\Contracts\BatchSource;
 use JayI\Impex\Contracts\Resumable;
+use JayI\Impex\Enums\ChildClosePolicy;
+use JayI\Impex\Enums\CompensationFailure;
 use JayI\Impex\Flows\Concerns\CanResume;
 use JayI\Impex\Flows\Flow;
 use JayI\Impex\Flows\ResumableAction;
@@ -478,5 +480,158 @@ final class NullSignalFlow extends Flow
             ->wait();
 
         return ['received' => $decision, 'timed_out' => false];
+    }
+}
+
+final class ChildFlow extends Flow
+{
+    /**
+     * @return array<string, mixed>
+     */
+    public function handle(int $n): array
+    {
+        Calls::record('child-flow');
+
+        return $this->action(AddOne::class, $n)->run();
+    }
+}
+
+final class FailingChildFlow extends Flow
+{
+    /**
+     * @return array<string, mixed>
+     */
+    public function handle(): array
+    {
+        return $this->action(AlwaysFails::class)->run();
+    }
+}
+
+final class ParentFlow extends Flow
+{
+    /**
+     * @return array<string, mixed>
+     */
+    public function handle(int $n): array
+    {
+        $child = $this->child('child', $n)->run();
+
+        Calls::record('after-child');
+
+        return ['child' => $child];
+    }
+}
+
+final class FailingParentFlow extends Flow
+{
+    /**
+     * @return array<string, mixed>
+     */
+    public function handle(): array
+    {
+        $this->action(AddOne::class, 1)->compensateWith(Rollback::class, 'parent-work')->run();
+
+        $this->child('failing-child')->run();
+
+        Calls::record('never-reached');
+
+        return [];
+    }
+}
+
+final class DetachedParentFlow extends Flow
+{
+    /**
+     * @return array<string, mixed>
+     */
+    public function handle(): array
+    {
+        $started = $this->child('child', 1)
+            ->closePolicy(ChildClosePolicy::Abandon)
+            ->detached()
+            ->run();
+
+        return $started;
+    }
+}
+
+final class VersionedFlow extends Flow
+{
+    public const VERSION = 'v2';
+
+    /**
+     * @return array<string, mixed>
+     */
+    public function handle(): array
+    {
+        // Runs that started under v1 keep taking the old path.
+        return ['took' => $this->version() === 'v1' ? 'legacy' : 'current'];
+    }
+}
+
+final class OptionalFlow extends Flow
+{
+    /**
+     * @return array<string, mixed>
+     */
+    public function handle(): array
+    {
+        $result = $this->optionalAction(AlwaysFails::class)->run();
+
+        Calls::record('after-optional');
+
+        return ['result' => $result];
+    }
+}
+
+final class SagaFlow extends Flow
+{
+    /**
+     * @return array<int, mixed>
+     */
+    public function handle(bool $parallel = false, string $policy = 'stop'): array
+    {
+        $saga = $this->saga()
+            ->onCompensationFailure(CompensationFailure::from($policy));
+
+        if ($parallel) {
+            $saga->compensateInParallel();
+        }
+
+        return $saga
+            ->step(AddOne::class, 1)->compensateWith(Rollback::class, 'first')
+            ->step(AddOne::class, 2)->compensateWith(Rollback::class, 'second')
+            ->step(AlwaysFails::class)
+            ->run();
+    }
+}
+
+final class SlowAction
+{
+    /**
+     * @return array<string, mixed>
+     */
+    public function execute(): array
+    {
+        Calls::record('slow');
+
+        return ['done' => true];
+    }
+}
+
+final class DeadlineFlow extends Flow
+{
+    /**
+     * @return array<string, mixed>
+     */
+    public function handle(): array
+    {
+        // Work that completes, so there is something for the deadline failure
+        // to roll back.
+        $this->action(AddOne::class, 1)->compensateWith(Rollback::class, 'before-slow')->run();
+
+        return $this->action(SlowAction::class)
+            ->expiresAt(now()->addMinutes(5))
+            ->run();
     }
 }

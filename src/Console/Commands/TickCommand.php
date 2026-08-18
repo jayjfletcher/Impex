@@ -44,12 +44,16 @@ final class TickCommand extends Command
         // Backstop for a completion check that lost its throttle lock: without
         // this a finished batch could sit unfinalised until another item moved.
         $finalized = $batches->sweep();
+        // Deadlines are enforced here rather than in-process: a step that has
+        // handed control to an upstream call cannot check a clock.
+        $expired = $engine->enforceDeadlines();
 
         $this->components->info(sprintf(
-            'Impex tick complete: %d timer(s) fired, %d step(s) reclaimed, %d batch(es) finalized.',
+            'Impex tick complete: %d timer(s) fired, %d step(s) reclaimed, %d batch(es) finalized, %d deadline(s) enforced.',
             $fired,
             $reclaimed,
             $finalized,
+            $expired,
         ));
 
         return self::SUCCESS;

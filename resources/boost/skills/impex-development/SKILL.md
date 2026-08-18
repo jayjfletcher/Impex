@@ -111,6 +111,11 @@ Two different ceilings, two different tools:
 - **Work spread over many items** — `fanOut()` up to `impex.limits.fan_out_max`
   (default 100), `batch()` above it. Replay is O(history) per drive, so
   per-item steps do not scale.
+- **A different workflow entirely** — `child()`. The child is a run in its own
+  right with its own compensation, and the parent parks on it.
+- **Work that may hang rather than fail** — a deadline. `expiresAt()` on a step,
+  `expiresAt:` on a run, or defaults in `impex.deadlines`. Enforced by
+  `impex:tick`, because a step inside an upstream call cannot check a clock.
 
 Read `references/serverless.md` before writing anything whose size is not known
 in advance.
@@ -140,7 +145,16 @@ Over HTTP, `POST impex/flows/{flow}/runs` answers `202` with the run. Over MCP,
 to `impex.routes.middleware` and `impex.mcp.web.middleware` before exposing
 either: they trigger and cancel workflows and read every recorded payload.
 
-### 8. Watch it
+### 8. Test it
+
+The package ships assertions: `JayI\Impex\Testing\Flows`. `Flows::run()` drives
+a run to completion in-process with no worker; `Flows::travelTo()` moves the
+clock and runs the sweep, which is how you test a timeout, a sleep, or a
+deadline. Write `Flows::redeliverSteps()` for any flow touching a
+non-idempotent upstream — that is the test that at-least-once delivery does not
+repeat a side effect.
+
+### 9. Watch it
 
 Enable `impex.ui` behind admin middleware for the dashboard, or use the
 `list-runs` / `show-run` tools. Two independent layers: `impex.ui.middleware`
@@ -191,5 +205,11 @@ every config key (`13-configuration.md`).
   lapsed lease is reclaimable by design, so any action touching a
   non-idempotent upstream still needs its own idempotency key
 - **do not** `fanOut()` over an unbounded collection — use `batch()`
-- **do not** deploy a changed `handle()` while runs of that flow are live;
-  the replay will diverge and the run fails with `HistoryMismatchException`
+- **do not** deploy a changed `handle()` while runs of that flow are live
+  without versioning it: declare `public const VERSION` and branch on
+  `$this->version()`, or drain the active runs first. Otherwise the replay
+  diverges and the run fails with `HistoryMismatchException`
+- **do not** reach for `runSync()` or `wait: true` for anything but short flows
+  and tests — the gateway times out long before a real flow finishes
+- **do not** use `compensateInParallel()` unless the group's steps are genuinely
+  independent; reverse order exists because rollbacks usually depend on it

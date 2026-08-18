@@ -21,6 +21,8 @@
 | [Configuration](13-configuration.md) | Every config key |
 | [Schema](14-schema.md) | Every table and column |
 | [Testing](15-testing.md) | Testing flows in a host application |
+| [Child workflows](16-children.md) | Running a flow from a flow, and close policies |
+| [Versioning](17-versioning.md) | Branching old runs down old code, and deadlines |
 
 ## The shape of it in one page
 

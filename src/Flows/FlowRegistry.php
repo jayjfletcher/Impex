@@ -129,6 +129,24 @@ final class FlowRegistry
     }
 
     /**
+     * The version a flow declares for new runs, if any.
+     *
+     * A flow opts in by declaring `public const VERSION = 'v2';`. Runs record
+     * it at start, so a flow can branch on `$this->version()` to keep older
+     * runs on the path they began with.
+     */
+    public function version(string $slug): ?string
+    {
+        if (! $this->has($slug)) {
+            return null;
+        }
+
+        $class = $this->class($slug);
+
+        return defined($class.'::VERSION') ? (string) constant($class.'::VERSION') : null;
+    }
+
+    /**
      * Whether the flow may currently be run.
      *
      * Defaults to enabled; only an explicit override disables it.

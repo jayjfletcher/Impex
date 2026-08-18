@@ -4,8 +4,10 @@ declare(strict_types=1);
 
 namespace JayI\Impex;
 
+use DateTimeInterface;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\Client\PendingRequest;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\LazyCollection;
 use JayI\Impex\Enums\ArtifactKind;
 use JayI\Impex\Enums\Direction;
@@ -18,6 +20,8 @@ use JayI\Impex\Models\Message;
 use JayI\Impex\Models\Run;
 use JayI\Impex\Models\Signal;
 use JayI\Impex\Runtime\Engine;
+use JayI\Impex\Runtime\RunHandle;
+use JayI\Impex\Runtime\RunQuery;
 use JayI\Impex\Support\MessageRecorder;
 use JayI\Impex\Support\OutboundRecorder;
 use JayI\Impex\Support\PayloadStore;
@@ -61,6 +65,8 @@ class Impex
         ?string $idempotencyKey = null,
         array $tags = [],
         iterable $owners = [],
+        ?string $version = null,
+        DateTimeInterface|int|null $expiresAt = null,
     ): Run {
         if ($idempotencyKey !== null) {
             $existing = Run::query()->where('idempotency_key', $idempotencyKey)->first();
@@ -79,9 +85,11 @@ class Impex
             'status' => RunStatus::Pending,
             'trigger' => $trigger,
             'idempotency_key' => $idempotencyKey,
+            'flow_version' => $version ?? $this->flows->version($slug),
             'input' => $stored['inline'],
             'input_artifact_id' => $stored['artifact_id'],
             'tags' => $tags === [] ? null : $tags,
+            'expires_at' => $this->deadline($expiresAt),
         ]);
 
         foreach ($owners as $role => $owner) {
@@ -91,6 +99,52 @@ class Impex
         $this->engine->start($run);
 
         return $run;
+    }
+
+    /**
+     * Start a run and drive it to completion in this process.
+     *
+     * For tests, and for short flows behind a request. Steps execute inline
+     * rather than being queued, so nothing here needs a worker. A flow that
+     * parks on a signal or a timer will not finish and is returned as it
+     * stands; the budget is `impex.limits.sync_seconds`.
+     *
+     * @param  array<int, mixed>  $arguments
+     * @param  array<string, string>  $tags
+     * @param  iterable<int|string, Model>  $owners
+     */
+    public function runSync(
+        string $slug,
+        array $arguments = [],
+        RunTrigger $trigger = RunTrigger::Code,
+        ?string $idempotencyKey = null,
+        array $tags = [],
+        iterable $owners = [],
+        ?string $version = null,
+        ?int $seconds = null,
+    ): Run {
+        $run = $this->run($slug, $arguments, $trigger, $idempotencyKey, $tags, $owners, $version);
+
+        /** @var int $budget */
+        $budget = $seconds ?? config('impex.limits.sync_seconds', 15);
+
+        return $this->engine->driveToCompletion($run, $budget);
+    }
+
+    /**
+     * Ask for runs.
+     */
+    public function query(): RunQuery
+    {
+        return new RunQuery;
+    }
+
+    /**
+     * A run you can act on directly.
+     */
+    public function handle(Run|string $run): RunHandle
+    {
+        return new RunHandle($run instanceof Run ? $run : Run::query()->findOrFail($run));
     }
 
     /**
@@ -238,5 +292,20 @@ class Impex
     public function result(Run $run): mixed
     {
         return $this->payloads->get($run->result, $run->result_artifact_id);
+    }
+
+    /**
+     * Normalise a deadline given as a moment or a number of seconds.
+     */
+    private function deadline(DateTimeInterface|int|null $expiresAt): ?DateTimeInterface
+    {
+        if ($expiresAt === null) {
+            /** @var int|null $default */
+            $default = config('impex.deadlines.run');
+
+            return $default === null ? null : Carbon::now()->addSeconds($default);
+        }
+
+        return is_int($expiresAt) ? Carbon::now()->addSeconds($expiresAt) : $expiresAt;
     }
 }

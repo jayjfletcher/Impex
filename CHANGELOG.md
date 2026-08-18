@@ -29,12 +29,29 @@
 - Signal builder: `signal($name)->timeoutAfter()->default()->orFail()->wait()`
 - `Impex::signalIfRunning()`, the `signalable()` scope, and `impex:signal`
 
+- Child workflows: `child()` with `closePolicy()`, `detached()` and `withTags()`
+- Versioning: a `VERSION` constant per flow, `$this->version()` to branch on it,
+  and a guard that refuses a slug repointed at a different class
+- Deadlines on runs and steps, enforced by `impex:tick`
+- `Impex::runSync()`, and `wait: true` on the trigger endpoint and MCP tool
+- `saga()` groups with `onCompensationFailure()` and `compensateInParallel()`
+- `optionalAction()`
+- `Impex::query()` with `handles()`, and `Impex::handle()`
+- `JayI\Impex\Testing\Flows` assertion helpers
+
 ### Fixed
 
 - Signalling a finished run now throws `CannotSignalTerminalRunException`
   (409 over HTTP) instead of silently writing a row nothing would consume.
 - A timed out signal wait is recorded as skipped rather than completed with
   null, so a genuine null payload is distinguishable from nobody answering.
+- `expiresAt()` was recorded but never enforced, so a step deadline silently did
+  nothing. Deadlines are now swept by `impex:tick`.
+- `flow_version` was never written, so the divergence detection the docs
+  described did not exist.
+- `impex.limits.sync_seconds` was configuration with no code behind it.
+- A failed compensation re-selected the same target on the next drive, looping
+  the rollback forever. It now halts or skips according to the group's policy.
 
 - Flow registry precedence no longer depends on boot order. Application config
   always wins over a package's runtime registration; previously whichever

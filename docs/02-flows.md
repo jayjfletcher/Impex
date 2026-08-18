@@ -112,6 +112,55 @@ $result = $this->action(ChargeCard::class, $orderId, $amount)
 | `run()` | Resolve: return the recorded result, or schedule and suspend. |
 | `descriptor()` | The immutable description, for use inside `parallel()`. |
 
+### `optionalAction(string $class, mixed ...$arguments): ActionBuilder`
+
+An action whose failure should not unwind the run. Shorthand for
+`action(...)->continueOnFailure()`.
+
+```php
+// A missing thumbnail is not worth rolling back an import for.
+$thumbnail = $this->optionalAction(GenerateThumbnail::class, $sku)->run();   // null on failure
+```
+
+### `saga(): SagaBuilder`
+
+Groups steps under one rollback policy. The forward path is unchanged — each
+step is recorded exactly as `action()` would record it. What changes is the
+rollback.
+
+```php
+$this->saga()
+    ->onCompensationFailure(CompensationFailure::Continue)
+    ->compensateInParallel()
+    ->step(ChargeCard::class, $orderId)->compensateWith(RefundCard::class, $orderId)
+    ->step(ReserveStock::class, $orderId)->compensateWith(ReleaseStock::class, $orderId)
+    ->step(ShipOrder::class, $orderId)
+    ->run();
+```
+
+| Method | Effect |
+|---|---|
+| `onCompensationFailure(CompensationFailure)` | `Stop` (default) halts the rollback; `Continue` pushes through. |
+| `compensateInParallel()` | Roll the group back all at once instead of in reverse order. Only safe when the steps are independent. |
+| `step(string $class, ...$args)` | Add a step. |
+| `compensateWith(string $class, ...$args)` | Rollback for the step just added. |
+| `tries(int)` | Attempts for the step just added. |
+
+### `child(string $flow, mixed ...$arguments): ChildBuilder`
+
+Run another flow as a child. See [Child workflows](16-children.md).
+
+```php
+$result = $this->child('provision-billing', $customerId)
+    ->closePolicy(ChildClosePolicy::Cancel)
+    ->run();
+```
+
+### `version(): ?string`
+
+The version this run started under, for branching old runs down old code. See
+[Versioning](17-versioning.md).
+
 ### `parallel(): ParallelBuilder`
 
 Several actions concurrently, joined on all of them. Results come back in

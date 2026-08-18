@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace JayI\Impex\Flows\Builders;
 
 use DateTimeInterface;
+use JayI\Impex\Enums\CompensationFailure;
 use JayI\Impex\Enums\StepType;
 use JayI\Impex\Runtime\Context;
 use JayI\Impex\Runtime\StepDescriptor;
@@ -24,6 +25,12 @@ final class ActionBuilder
     private mixed $fallback = null;
 
     private ?DateTimeInterface $expiresAt = null;
+
+    private ?string $sagaGroup = null;
+
+    private CompensationFailure $compensationFailure = CompensationFailure::Stop;
+
+    private bool $compensateInParallel = false;
 
     /**
      * @param  array<int, mixed>  $arguments
@@ -84,6 +91,23 @@ final class ActionBuilder
     }
 
     /**
+     * Mark this step as part of a saga group, sharing its rollback policy.
+     *
+     * Called by SagaBuilder; there is no reason to call it directly.
+     */
+    public function inSaga(
+        string $group,
+        CompensationFailure $onFailure,
+        bool $inParallel,
+    ): self {
+        $this->sagaGroup = $group;
+        $this->compensationFailure = $onFailure;
+        $this->compensateInParallel = $inParallel;
+
+        return $this;
+    }
+
+    /**
      * The immutable description handed to the engine.
      */
     public function descriptor(): StepDescriptor
@@ -97,6 +121,9 @@ final class ActionBuilder
             continueOnFailure: $this->continueOnFailure,
             fallback: $this->fallback,
             expiresAt: $this->expiresAt,
+            sagaGroup: $this->sagaGroup,
+            compensationFailure: $this->compensationFailure,
+            compensateInParallel: $this->compensateInParallel,
         );
     }
 

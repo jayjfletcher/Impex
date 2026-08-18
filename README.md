@@ -365,6 +365,50 @@ boundary, so mounting it is an explicit decision and it needs real middleware.
 The dashboard is a pure client of the documented API — it uses no private
 endpoint. That is the test that the API is complete.
 
+## Child workflows
+
+```php
+$billing = $this->child('provision-billing', $customerId)
+    ->closePolicy(ChildClosePolicy::Cancel)
+    ->run();
+```
+
+A child is a run in its own right — own history, own compensation, own row —
+linked by `parent_run_id`. The parent parks on it like any other step. A failed
+child unwinds the parent, after compensating itself.
+
+## Versioning
+
+```php
+final class ExtractProductsFlow extends Flow
+{
+    public const VERSION = 'v2';
+
+    public function handle(string $query): array
+    {
+        if ($this->version() === 'v1') {
+            // the path runs already in flight began with
+        }
+    }
+}
+```
+
+Every run records the version it started under, so one class serves both the
+runs in flight and the new ones. Repointing a slug at a *different* class is
+refused on the next drive rather than replayed into the wrong code.
+
+## Deadlines
+
+```php
+Impex::run('extract-products', [$query], expiresAt: 3600);
+
+$this->action(FetchPricing::class, $skus)->expiresAt(now()->addMinutes(10))->run();
+```
+
+Enforced by `impex:tick`, not in-process — a step that has handed control to an
+upstream call cannot check a clock. A lease stops a *killed* invocation wedging
+a run; a deadline stops a *hung* one running forever.
+
 ## Signals
 
 ```php

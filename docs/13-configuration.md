@@ -43,10 +43,21 @@ Jobs carry ULIDs only, never payloads, so a message can never approach SQS's
 | `lock_seconds` | `120` | TTL of the per-run drive lock. |
 | `fan_out_max` | `100` | Item ceiling for `fanOut()`. Above it, use `batch()`. |
 | `max_resumptions` | `10000` | How many times one step may checkpoint before failing. |
-| `sync_seconds` | `15` | Cap on a caller that explicitly asks to wait for a result. |
+| `sync_seconds` | `15` | Budget for `Impex::runSync()` and for an API caller passing `wait: true`. |
 
 If `lease_seconds` drops below `max_step_seconds`, a legitimately slow step has
 its lease reclaimed while still working, and runs twice.
+
+## `deadlines`
+
+| Key | Default | Meaning |
+|---|---|---|
+| `run` | `null` | Default seconds before a run passes its deadline and compensates. |
+| `step` | `null` | Default seconds before a step passes its deadline and fails. |
+
+Null means no deadline. Enforced by `impex:tick`, not in-process: a step that
+has handed control to an upstream call cannot check a clock. Per-run and
+per-step values override these.
 
 ## `artifacts`
 

@@ -39,9 +39,17 @@ surface calls the same Actions, so the two cannot drift.
 {
   "arguments": ["drill bits", 50],
   "idempotency_key": "req_9f2c",
-  "tags": { "tenant": "acme" }
+  "tags": { "tenant": "acme" },
+  "version": "v2",
+  "expires_in": 3600,
+  "wait": false
 }
 ```
+
+`version` pins the run so later code changes can branch on it. `expires_in` is a
+deadline in seconds. `wait` drives the run inline and returns its terminal
+state — only for short flows, and bounded by `impex.limits.sync_seconds`, because
+the gateway will time out long before a flow of any size finishes.
 
 `202 Accepted` — the run is queued, never executed inline, so the caller is not
 held past the gateway's timeout.

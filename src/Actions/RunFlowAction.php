@@ -9,12 +9,14 @@ use JayI\Impex\Exceptions\DisabledFlowException;
 use JayI\Impex\Flows\FlowRegistry;
 use JayI\Impex\Impex;
 use JayI\Impex\Models\Run;
+use JayI\Impex\Runtime\Engine;
 
 final class RunFlowAction
 {
     public function __construct(
         private readonly Impex $impex,
         private readonly FlowRegistry $flows,
+        private readonly Engine $engine,
     ) {}
 
     /**
@@ -27,6 +29,9 @@ final class RunFlowAction
             'idempotency_key' => ['sometimes', 'nullable', 'string', 'max:191'],
             'tags' => ['sometimes', 'array'],
             'tags.*' => ['string', 'max:191'],
+            'version' => ['sometimes', 'nullable', 'string', 'max:64'],
+            'expires_in' => ['sometimes', 'integer', 'min:1'],
+            'wait' => ['sometimes', 'boolean'],
         ];
     }
 
@@ -54,7 +59,18 @@ final class RunFlowAction
             trigger: $trigger,
             idempotencyKey: $key,
             tags: $tags,
+            version: isset($data['version']) ? (string) $data['version'] : null,
+            expiresAt: isset($data['expires_in']) ? (int) $data['expires_in'] : null,
         );
+
+        // A caller may ask to wait, bounded by impex.limits.sync_seconds — the
+        // gateway will time out long before a flow of any size finishes.
+        if (($data['wait'] ?? false) === true) {
+            /** @var int $budget */
+            $budget = config('impex.limits.sync_seconds', 15);
+
+            return $this->engine->driveToCompletion($run, $budget);
+        }
 
         // Report the run as it stands at response time. Under a real queue that
         // is still pending; under the sync driver the drive already ran.

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace JayI\Impex\Runtime;
 
 use DateTimeInterface;
+use JayI\Impex\Enums\CompensationFailure;
 use JayI\Impex\Enums\StepType;
 
 /**
@@ -28,5 +29,8 @@ final readonly class StepDescriptor
         public bool $continueOnFailure = false,
         public mixed $fallback = null,
         public ?DateTimeInterface $expiresAt = null,
+        public ?string $sagaGroup = null,
+        public CompensationFailure $compensationFailure = CompensationFailure::Stop,
+        public bool $compensateInParallel = false,
     ) {}
 }

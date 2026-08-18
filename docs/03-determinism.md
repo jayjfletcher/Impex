@@ -131,12 +131,22 @@ and is left for you to inspect.
 
 ## Deploying under a live run
 
-Changing `handle()` while runs of that flow are in flight is the one divergence
-the engine cannot help with: the recorded history describes code that no longer
-exists. `flow_class` and `flow_version` are recorded on the run so the engine
-can *detect* this — they cannot pin the old code.
+Changing `handle()` while runs of that flow are in flight would diverge — the
+recorded history describes code that no longer exists.
 
-Before changing a flow's shape, drain its active runs:
+**[Versioning](17-versioning.md) is the answer.** Every run records the version
+it started under, and `$this->version()` lets one class serve both the runs
+already in flight and the new ones:
+
+```php
+public const VERSION = 'v2';
+
+if ($this->version() === 'v1') {
+    // the path those runs began with
+}
+```
+
+Without a version, drain first:
 
 ```php
 Run::query()->where('flow', 'extract-products')->active()->count();
@@ -144,6 +154,9 @@ Run::query()->where('flow', 'extract-products')->active()->count();
 
 **Adding steps to the end of `handle()` is safe.** Inserting, removing, or
 reordering steps before existing ones is not.
+
+Repointing a slug at a *different class* is refused outright, checked on every
+drive: `FlowVersionMismatchException` names the old class and the new one.
 
 ## What the engine does not guarantee
 

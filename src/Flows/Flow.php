@@ -8,8 +8,10 @@ use Closure;
 use DateTimeInterface;
 use JayI\Impex\Flows\Builders\ActionBuilder;
 use JayI\Impex\Flows\Builders\BatchBuilder;
+use JayI\Impex\Flows\Builders\ChildBuilder;
 use JayI\Impex\Flows\Builders\FanOutBuilder;
 use JayI\Impex\Flows\Builders\ParallelBuilder;
+use JayI\Impex\Flows\Builders\SagaBuilder;
 use JayI\Impex\Flows\Builders\SignalBuilder;
 use JayI\Impex\Runtime\Context;
 use RuntimeException;
@@ -58,6 +60,47 @@ abstract class Flow
     final protected function action(string $action, mixed ...$arguments): ActionBuilder
     {
         return new ActionBuilder($this->context(), $action, array_values($arguments));
+    }
+
+    /**
+     * Run a unit of work whose failure should not unwind the run.
+     *
+     * Shorthand for `action(...)->continueOnFailure($fallback)`: a terminal
+     * failure returns the fallback and the flow carries on.
+     */
+    final protected function optionalAction(string $action, mixed ...$arguments): ActionBuilder
+    {
+        return $this->action($action, ...$arguments)->continueOnFailure();
+    }
+
+    /**
+     * Group steps under one rollback policy.
+     */
+    final protected function saga(): SagaBuilder
+    {
+        return new SagaBuilder($this->context());
+    }
+
+    /**
+     * Run another flow as a child of this one.
+     *
+     * The child is a run in its own right, with its own history and its own
+     * compensation, linked back by parent_run_id.
+     */
+    final protected function child(string $flow, mixed ...$arguments): ChildBuilder
+    {
+        return new ChildBuilder($this->context(), $flow, array_values($arguments));
+    }
+
+    /**
+     * The version this run was started under, if any.
+     *
+     * Branch on it to keep runs that began before a change flowing through the
+     * code they started with, instead of diverging when the flow is edited.
+     */
+    final protected function version(): ?string
+    {
+        return $this->context()->version();
     }
 
     /**

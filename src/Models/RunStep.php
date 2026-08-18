@@ -36,6 +36,7 @@ use JayI\Impex\Enums\StepType;
  * @property string|null $lease_token
  * @property Carbon|null $leased_until
  * @property int|null $compensates_sequence
+ * @property string|null $saga_group
  * @property Carbon|null $expires_at
  * @property Carbon|null $queued_at
  * @property Carbon|null $started_at
@@ -71,6 +72,7 @@ final class RunStep extends Model
         'lease_token',
         'leased_until',
         'compensates_sequence',
+        'saga_group',
         'expires_at',
         'queued_at',
         'started_at',

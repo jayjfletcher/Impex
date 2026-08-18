@@ -30,6 +30,8 @@ final class RunStepResource extends JsonResource
             'resumptions' => $this->resumptions,
             'compensated' => $this->compensated,
             'compensates_sequence' => $this->compensates_sequence,
+            'saga_group' => $this->saga_group,
+            'expires_at' => $this->expires_at?->toIso8601String(),
             'error' => $this->error,
             // Payloads are deliberately not inlined: a step result can be
             // hundreds of megabytes on the artifact disk.

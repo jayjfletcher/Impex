@@ -13,7 +13,7 @@ One execution of a flow.
 | `id` | ulid pk |
 | `flow` | registry slug, indexed |
 | `flow_class` | recorded for divergence detection |
-| `flow_version` | divergence **detector**, not a pin |
+| `flow_version` | the version the run started under; `$this->version()` branches on it |
 | `status` | see [Flows](02-flows.md#statuses) |
 | `trigger` | `api` `mcp` `command` `schedule` `channel` `code` `child` |
 | `idempotency_key` | **unique**; a repeat returns the original run |
@@ -22,6 +22,7 @@ One execution of a flow.
 | `error` | class, message, file, line |
 | `tags` | queryable json |
 | `parent_run_id`, `parent_sequence` | child workflows |
+| `close_policy` | what happens to this child if its parent finishes first |
 | `queue_connection`, `queue` | per-run routing |
 | `expires_at`, `started_at`, `finished_at` | |
 
@@ -44,6 +45,7 @@ The replay log.
 | `cursor`, `resumptions` | the resume checkpoint and how many times it fired |
 | `lease_token`, `leased_until` | claim-before-execute; a lapsed lease is reclaimable |
 | `compensates_sequence` | back-reference from a compensation step |
+| `saga_group` | groups steps declared in one `saga()` block, so a rollback can find a step's peers and apply the group's policy |
 
 `phase` gives compensation its own sequence space, so rollback steps never
 collide with the forward history the replay reads.

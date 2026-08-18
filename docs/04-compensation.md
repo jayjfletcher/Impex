@@ -56,10 +56,22 @@ timeline.
 
 ## When a compensation itself fails
 
+Set per saga group:
+
+```php
+$this->saga()
+    ->onCompensationFailure(CompensationFailure::Continue)
+    ->step(ChargeCard::class, $id)->compensateWith(RefundCard::class, $id)
+    ->run();
+```
+
 | Policy | Behaviour |
 |---|---|
-| `CompensationFailure::Stop` (default) | Rollback halts and surfaces. The run is left `compensating` for you to inspect. |
-| `CompensationFailure::Continue` | Rollback pushes through remaining steps and reports at the end. |
+| `CompensationFailure::Stop` (default) | Rollback halts. The run fails with a `rollback` note in its error saying which compensation failed, and is left partly compensated for inspection. |
+| `CompensationFailure::Continue` | The failed rollback is marked skipped, its target is recorded as compensated, and the rollback moves on. |
+
+Marking the failed one skipped matters: without it the same target is selected
+again on the next drive, because it is still uncompensated — an endless loop.
 
 Stopping is the default because a half-completed rollback that keeps going can
 compound the damage — releasing stock for an order whose refund failed leaves

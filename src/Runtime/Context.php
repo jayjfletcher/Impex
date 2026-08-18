@@ -175,6 +175,30 @@ final class Context
     }
 
     /**
+     * The version this run was started under, if any.
+     *
+     * Branch on this to keep runs that started before a change flowing through
+     * the code they began with:
+     *
+     *   if ($this->version() === 'v1') { ... } else { ... }
+     */
+    public function version(): ?string
+    {
+        return $this->run->flow_version;
+    }
+
+    /**
+     * A stable identifier for the saga group opening at this point.
+     *
+     * Derived from the replay cursor rather than a random value, so the same
+     * group gets the same id on every drive.
+     */
+    public function sagaGroupId(): string
+    {
+        return 'saga-'.$this->cursor;
+    }
+
+    /**
      * Attach a queryable tag to the run.
      */
     public function tag(string $key, string $value): void
