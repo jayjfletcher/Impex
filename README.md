@@ -1,6 +1,6 @@
 # Impex
 
-Workflow engine and data-flow ledger for Laravel, built for Vapor.
+Workflow engine and data-flow ledger for Laravel.
 
 Impex runs multi-step work as deterministic, replayable flows with rolling back
 rollback, and records every payload that crosses the application boundary so you
@@ -28,7 +28,7 @@ $schedule->command('impex:tick')->everyMinute();
 
 The package registers this itself when `impex.timers.enabled` is not `false`.
 
-On Vapor, point the artifact disk at S3 and the lock store at Redis or DynamoDB:
+On Vapor/Lambda, point the artifact disk at S3 and the lock store at Redis or DynamoDB:
 
 ```php
 'artifacts' => ['disk' => 's3'],
