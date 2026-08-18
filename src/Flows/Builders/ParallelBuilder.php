@@ -37,7 +37,7 @@ final class ParallelBuilder
     }
 
     /**
-     * Add a pre-built branch, so a branch can carry its own compensation or
+     * Add a pre-built branch, so a branch can carry its own rollback or
      * retry policy.
      */
     public function add(ActionBuilder $builder): self

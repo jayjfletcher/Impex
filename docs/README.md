@@ -9,7 +9,7 @@
 | [Installation](01-installation.md) | Install, publish, schedule, and the Vapor checklist |
 | [Flows and actions](02-flows.md) | Writing a workflow, the full DSL reference |
 | [Determinism](03-determinism.md) | The replay contract, and what breaks it |
-| [Compensation](04-compensation.md) | Rollback, policies, and what it cannot undo |
+| [Rollback](04-rollback.md) | Rollback, policies, and what it cannot undo |
 | [Signals and timers](05-signals-timers.md) | Waiting for humans and for the clock |
 | [Scale](06-scale.md) | `fanOut`, `batch`, and resumable actions |
 | [The ledger](07-ledger.md) | Inbound channels, outbound recording |
@@ -41,7 +41,7 @@ final class ExtractProductsFlow extends Flow
             ->run();
 
         $this->action(WriteToPim::class, $hits, $pricing, $inventory)
-            ->compensateWith(RollbackPimWrite::class, $hits)
+            ->undoWith(RollbackPimWrite::class, $hits)
             ->run();
 
         return ['products' => count($hits)];

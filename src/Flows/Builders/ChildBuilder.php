@@ -15,7 +15,7 @@ use JayI\Impex\Runtime\Context;
 /**
  * Runs another flow as a child of this one.
  *
- * The child is a Run in its own right — its own history, its own compensation,
+ * The child is a Run in its own right — its own history, its own rollback,
  * its own row in the dashboard — linked back by `parent_run_id`. The parent
  * parks on it exactly as it would on any other step, so a child that takes a
  * week costs the parent nothing while it waits.

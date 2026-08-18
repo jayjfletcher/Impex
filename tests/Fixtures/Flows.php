@@ -7,7 +7,7 @@ namespace JayI\Impex\Tests\Fixtures;
 use JayI\Impex\Contracts\BatchSource;
 use JayI\Impex\Contracts\Resumable;
 use JayI\Impex\Enums\ChildClosePolicy;
-use JayI\Impex\Enums\CompensationFailure;
+use JayI\Impex\Enums\RollbackFailure;
 use JayI\Impex\Flows\Concerns\CanResume;
 use JayI\Impex\Flows\Flow;
 use JayI\Impex\Flows\ResumableAction;
@@ -173,7 +173,7 @@ final class ParallelFlow extends Flow
     }
 }
 
-final class CompensatingFlow extends Flow
+final class RollbackFlow extends Flow
 {
     /**
      * @return array<string, int>
@@ -181,7 +181,7 @@ final class CompensatingFlow extends Flow
     public function handle(): array
     {
         $this->action(AddOne::class, 1)
-            ->compensateWith(Rollback::class, 'add-one')
+            ->undoWith(Rollback::class, 'add-one')
             ->run();
 
         $this->action(AlwaysFails::class)->run();
@@ -529,7 +529,7 @@ final class FailingParentFlow extends Flow
      */
     public function handle(): array
     {
-        $this->action(AddOne::class, 1)->compensateWith(Rollback::class, 'parent-work')->run();
+        $this->action(AddOne::class, 1)->undoWith(Rollback::class, 'parent-work')->run();
 
         $this->child('failing-child')->run();
 
@@ -584,23 +584,23 @@ final class OptionalFlow extends Flow
     }
 }
 
-final class SagaFlow extends Flow
+final class UnitFlow extends Flow
 {
     /**
      * @return array<int, mixed>
      */
-    public function handle(bool $parallel = false, string $policy = 'stop'): array
+    public function handle(bool $parallel = false, string $policy = 'halt'): array
     {
-        $saga = $this->saga()
-            ->onCompensationFailure(CompensationFailure::from($policy));
+        $unit = $this->unit()
+            ->onRollbackFailure(RollbackFailure::from($policy));
 
         if ($parallel) {
-            $saga->compensateInParallel();
+            $unit->rollbackTogether();
         }
 
-        return $saga
-            ->step(AddOne::class, 1)->compensateWith(Rollback::class, 'first')
-            ->step(AddOne::class, 2)->compensateWith(Rollback::class, 'second')
+        return $unit
+            ->step(AddOne::class, 1)->undoWith(Rollback::class, 'first')
+            ->step(AddOne::class, 2)->undoWith(Rollback::class, 'second')
             ->step(AlwaysFails::class)
             ->run();
     }
@@ -628,7 +628,7 @@ final class DeadlineFlow extends Flow
     {
         // Work that completes, so there is something for the deadline failure
         // to roll back.
-        $this->action(AddOne::class, 1)->compensateWith(Rollback::class, 'before-slow')->run();
+        $this->action(AddOne::class, 1)->undoWith(Rollback::class, 'before-slow')->run();
 
         return $this->action(SlowAction::class)
             ->expiresAt(now()->addMinutes(5))

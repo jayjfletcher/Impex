@@ -1,6 +1,6 @@
 # Child workflows
 
-A child is a **run in its own right** — its own history, its own compensation,
+A child is a **run in its own right** — its own history, its own rollback,
 its own row in the dashboard — linked back to its parent by `parent_run_id`.
 
 ```php
@@ -25,7 +25,7 @@ that takes a week costs the parent nothing while it waits.
 ## Why not just call the actions inline?
 
 Use `child()` when the work is a **different workflow** — one you would also run
-on its own, that has its own compensation and its own operational meaning. Use
+on its own, that has its own rollback and its own operational meaning. Use
 `action()` when it is a step of this one. Use `batch()` or `fanOut()` when it is
 more of the same work.
 
@@ -69,16 +69,16 @@ child it never checked.
 ## Failure
 
 A failed child fails the parent's child step, which unwinds the parent exactly
-as any other failed step would — including the parent's own compensations:
+as any other failed step would — including the parent's own rollbacks:
 
 ```php
-$this->action(ChargeCard::class, $id)->compensateWith(RefundCard::class, $id)->run();
+$this->action(ChargeCard::class, $id)->undoWith(RefundCard::class, $id)->run();
 
 $this->child('ship-order', $id)->run();   // fails
 // → RefundCard runs
 ```
 
-The child compensates itself first, then reports failure upward. Two levels of
+The child roll backs itself first, then reports failure upward. Two levels of
 rollback, each owning its own.
 
 ## Inheritance

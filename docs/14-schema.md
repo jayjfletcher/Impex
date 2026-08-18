@@ -35,19 +35,19 @@ The replay log.
 | Column | Notes |
 |---|---|
 | `run_id`, `phase`, `sequence` | **unique together** — the idempotency spine |
-| `type` | `action` `compensation` `side_effect` `signal` `fan_out` `batch` `child` `timer` |
+| `type` | `action` `rollback` `side_effect` `signal` `fan_out` `batch` `child` `timer` |
 | `name` | action class, side-effect key, signal name |
-| `status` | `pending` `running` `completed` `failed` `compensated` `skipped` |
+| `status` | `pending` `running` `completed` `failed` `rolled back` `skipped` |
 | `input`/`result` + artifact ids | |
-| `compensation` | `{action, arguments}`, captured when the forward step is recorded |
-| `compensated` | whether the rollback has run |
+| `rollback` | `{action, arguments}`, captured when the forward step is recorded |
+| `rolled back` | whether the rollback has run |
 | `attempts`, `max_attempts` | |
 | `cursor`, `resumptions` | the resume checkpoint and how many times it fired |
 | `lease_token`, `leased_until` | claim-before-execute; a lapsed lease is reclaimable |
-| `compensates_sequence` | back-reference from a compensation step |
-| `saga_group` | groups steps declared in one `saga()` block, so a rollback can find a step's peers and apply the group's policy |
+| `undoes_sequence` | back-reference from a rollback step |
+| `unit_id` | groups steps declared in one `unit()` block, so a rollback can find a step's peers and apply the group's policy |
 
-`phase` gives compensation its own sequence space, so rollback steps never
+`phase` gives rollback its own sequence space, so rollback steps never
 collide with the forward history the replay reads.
 
 ## `impex_run_owners`

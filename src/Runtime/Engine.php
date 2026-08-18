@@ -5,8 +5,6 @@ declare(strict_types=1);
 namespace JayI\Impex\Runtime;
 
 use DateTimeInterface;
-use Illuminate\Contracts\Bus\Dispatcher as Bus;
-use Illuminate\Contracts\Config\Repository as Config;
 use Illuminate\Contracts\Container\Container;
 use Illuminate\Contracts\Events\Dispatcher as Events;
 use Illuminate\Database\Eloquent\Builder;
@@ -14,31 +12,26 @@ use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use JayI\Impex\Contracts\Resumable;
+use JayI\Impex\Contracts\RollbackStrategy;
 use JayI\Impex\Enums\ArtifactKind;
 use JayI\Impex\Enums\ChildClosePolicy;
-use JayI\Impex\Enums\CompensationFailure;
+use JayI\Impex\Enums\RollbackFailure;
 use JayI\Impex\Enums\RunStatus;
-use JayI\Impex\Enums\RunTrigger;
 use JayI\Impex\Enums\StepPhase;
 use JayI\Impex\Enums\StepStatus;
 use JayI\Impex\Enums\StepType;
-use JayI\Impex\Enums\TimerKind;
 use JayI\Impex\Events\RunCompleted;
 use JayI\Impex\Events\RunFailed;
 use JayI\Impex\Events\RunStarted;
 use JayI\Impex\Events\StepCompleted;
 use JayI\Impex\Events\StepFailed;
-use JayI\Impex\Exceptions\CannotSignalTerminalRunException;
-use JayI\Impex\Exceptions\DeadlineExceededException;
 use JayI\Impex\Exceptions\FlowVersionMismatchException;
 use JayI\Impex\Exceptions\HistoryMismatchException;
 use JayI\Impex\Exceptions\StalledStepException;
 use JayI\Impex\Exceptions\StepFailedException;
 use JayI\Impex\Flows\Flow;
 use JayI\Impex\Flows\FlowRegistry;
-use JayI\Impex\Jobs\DriveRun;
 use JayI\Impex\Jobs\ExecuteStep;
-use JayI\Impex\Jobs\SeedBatch;
 use JayI\Impex\Models\Batch;
 use JayI\Impex\Models\Run;
 use JayI\Impex\Models\RunStep;
@@ -63,9 +56,13 @@ final class Engine
         private readonly Container $container,
         private readonly FlowRegistry $flows,
         private readonly PayloadStore $payloads,
-        private readonly Bus $bus,
+        private readonly StepWriter $steps,
+        private readonly Children $children,
+        private readonly Waits $waits,
+        private readonly RollbackStrategy $rollbacks,
+        private readonly JobRouter $jobs,
         private readonly Locks $locks,
-        private readonly Config $config,
+        private readonly EngineOptions $options,
         private readonly Events $events,
     ) {}
 
@@ -79,7 +76,7 @@ final class Engine
      */
     public function start(Run $run): void
     {
-        $this->dispatchDrive($run);
+        $this->jobs->drive($run);
     }
 
     /**
@@ -87,23 +84,23 @@ final class Engine
      */
     public function drive(string $runId): void
     {
-        $lock = $this->locks->acquire($this->lockKey($runId), $this->lockSeconds());
+        $lock = $this->locks->acquire($this->options->lockKey($runId), $this->options->lockSeconds());
 
         if (! $lock->get()) {
             // Another invocation holds the run. Leave a marker so the holder
             // re-reads the history before it lets go, rather than blocking a
             // Lambda invocation on a lock we may never win.
-            $this->locks->store()->put($this->dirtyKey($runId), true, $this->lockSeconds());
+            $this->locks->store()->put($this->options->dirtyKey($runId), true, $this->options->lockSeconds());
 
             return;
         }
 
         try {
             do {
-                $this->locks->store()->forget($this->dirtyKey($runId));
+                $this->locks->store()->forget($this->options->dirtyKey($runId));
 
                 $this->driveOnce($runId);
-            } while ($this->locks->store()->pull($this->dirtyKey($runId)) === true);
+            } while ($this->locks->store()->pull($this->options->dirtyKey($runId)) === true);
         } finally {
             $lock->release();
         }
@@ -143,7 +140,7 @@ final class Engine
             ->update([
                 'status' => StepStatus::Running->value,
                 'lease_token' => $token,
-                'leased_until' => Carbon::now()->addSeconds($this->leaseSeconds()),
+                'leased_until' => Carbon::now()->addSeconds($this->options->leaseSeconds()),
                 'started_at' => $step->started_at ?? Carbon::now(),
                 'attempts' => DB::raw('attempts + 1'),
                 'updated_at' => Carbon::now(),
@@ -177,9 +174,9 @@ final class Engine
      */
     public function scheduleStep(Run $run, int $sequence, StepDescriptor $descriptor): void
     {
-        $step = $this->writeStep($run, StepPhase::Forward, $sequence, $descriptor);
+        $step = $this->steps->write($run, StepPhase::Forward, $sequence, $descriptor);
 
-        $this->dispatchStep($run, $step);
+        $this->jobs->step($run, $step);
     }
 
     /**
@@ -254,7 +251,7 @@ final class Engine
             'max_attempts' => $maxAttempts,
         ]);
 
-        $this->bus->dispatch($this->route(new SeedBatch((string) $batch->getKey()), $run));
+        $this->jobs->seed($run, (string) $batch->getKey());
     }
 
     /**
@@ -280,164 +277,59 @@ final class Engine
     }
 
     /**
-     * Record that the run is waiting on a signal, with an optional deadline.
+     * Record that the run is parked on a signal.
      */
     public function recordSignalWait(Run $run, int $sequence, string $name, ?DateTimeInterface $timeout): void
     {
-        $step = RunStep::query()->create([
-            'run_id' => $run->getKey(),
-            'phase' => StepPhase::Forward,
-            'sequence' => $sequence,
-            'type' => StepType::Signal,
-            'name' => $name,
-            'status' => StepStatus::Pending,
-            'max_attempts' => 1,
-        ]);
-
-        if ($timeout instanceof DateTimeInterface) {
-            $this->writeTimer($run, $sequence, TimerKind::SignalTimeout, $timeout);
-        }
-
-        $this->events->dispatch(new StepCompleted($run->getKey(), $step->getKey()));
+        $this->waits->awaitSignal($run, $sequence, $name, $timeout);
     }
 
     /**
-     * Consume a signal already delivered to the run, if one is waiting.
+     * Consume a signal delivered before the run reached its wait.
      *
      * @return array{payload: mixed}|null
      */
     public function consumeSignal(Run $run, string $name, int $sequence, ?RunStep $step): ?array
     {
-        $signal = Signal::query()
-            ->where('run_id', $run->getKey())
-            ->where('name', $name)
-            ->whereNull('consumed_at')
-            ->orderBy('delivered_at')
-            ->first();
-
-        if (! $signal instanceof Signal) {
-            return null;
-        }
-
-        $payload = $this->payloads->get($signal->payload, $signal->payload_artifact_id);
-        $stored = $this->payloads->put($payload, ArtifactKind::Result, ['run_id' => $run->getKey()]);
-
-        if ($step instanceof RunStep) {
-            $step->update([
-                'status' => StepStatus::Completed,
-                'result' => $stored['inline'],
-                'result_artifact_id' => $stored['artifact_id'],
-                'completed_at' => Carbon::now(),
-            ]);
-        } else {
-            RunStep::query()->create([
-                'run_id' => $run->getKey(),
-                'phase' => StepPhase::Forward,
-                'sequence' => $sequence,
-                'type' => StepType::Signal,
-                'name' => $name,
-                'status' => StepStatus::Completed,
-                'result' => $stored['inline'],
-                'result_artifact_id' => $stored['artifact_id'],
-                'attempts' => 1,
-                'max_attempts' => 1,
-                'completed_at' => Carbon::now(),
-            ]);
-        }
-
-        $signal->update([
-            'consumed_at' => Carbon::now(),
-            'consumed_sequence' => $sequence,
-        ]);
-
-        return ['payload' => $payload];
+        return $this->waits->consume($run, $name, $sequence, $step);
     }
 
     /**
-     * Record a wall-clock wait as a timer rather than a delayed job.
+     * Record that the run is sleeping until an instant.
      */
     public function recordSleep(Run $run, int $sequence, DateTimeInterface $until): void
     {
-        RunStep::query()->create([
-            'run_id' => $run->getKey(),
-            'phase' => StepPhase::Forward,
-            'sequence' => $sequence,
-            'type' => StepType::Timer,
-            'name' => 'sleep',
-            'status' => StepStatus::Pending,
-            'max_attempts' => 1,
-        ]);
-
-        $this->writeTimer($run, $sequence, TimerKind::Sleep, $until);
+        $this->waits->sleep($run, $sequence, $until);
     }
 
     /**
-     * Deliver a signal to a run from outside the flow.
+     * Deliver a signal to a run.
      */
     public function deliverSignal(Run $run, string $name, mixed $payload = null, ?string $idempotencyKey = null): Signal
     {
-        // A signal is accepted by any non-terminal run — pending, running, or
-        // waiting. A finished one would hold the row forever unconsumed, so it
-        // fails loudly instead.
-        if ($run->status->isFinished()) {
-            throw CannotSignalTerminalRunException::status((string) $run->getKey(), $run->status);
-        }
-
-        $stored = $this->payloads->put($payload, ArtifactKind::Payload, ['run_id' => $run->getKey()]);
-
-        $signal = Signal::query()->firstOrCreate(
-            [
-                'run_id' => $run->getKey(),
-                'name' => $name,
-                'idempotency_key' => $idempotencyKey,
-            ],
-            [
-                'payload' => $stored['inline'],
-                'payload_artifact_id' => $stored['artifact_id'],
-                'delivered_at' => Carbon::now(),
-            ],
-        );
-
-        $this->dispatchDrive($run);
-
-        return $signal;
+        return $this->waits->deliver($run, $name, $payload, $idempotencyKey);
     }
 
     /**
-     * Fire a due timer: complete the step it was waiting on and drive the run.
+     * Fire one due timer.
      */
     public function fireTimer(Timer $timer): void
     {
-        $step = RunStep::query()
-            ->where('run_id', $timer->run_id)
-            ->where('phase', StepPhase::Forward)
-            ->where('sequence', $timer->sequence)
-            ->first();
-
-        if ($step instanceof RunStep && $step->status === StepStatus::Pending) {
-            // Skipped, not Completed-with-null: the flow has to be able to tell
-            // "the deadline passed" from "the signal arrived carrying null".
-            $step->update([
-                'status' => $step->type === StepType::Signal
-                    ? StepStatus::Skipped
-                    : StepStatus::Completed,
-                'result' => ['value' => null],
-                'completed_at' => Carbon::now(),
-            ]);
-        }
-
-        $timer->update(['fired_at' => Carbon::now()]);
-
-        $run = Run::query()->find($timer->run_id);
-
-        if ($run instanceof Run) {
-            $this->dispatchDrive($run);
-        }
+        $this->waits->fire($timer);
     }
 
     /**
-     * Queue a drive for a run.
+     * Fail steps and runs that passed their deadline.
+     *
+     * @return int the number failed
      */
+    public function enforceDeadlines(int $limit = 250): int
+    {
+        $result = $this->waits->enforceDeadlines($limit);
+
+        return $result['steps'] + $result['runs'];
+    }
+
     /**
      * Start another flow as a child of this run.
      *
@@ -453,111 +345,7 @@ final class Engine
         array $tags,
         bool $detached,
     ): void {
-        $stored = $this->payloads->put($arguments, ArtifactKind::Payload, ['run_id' => $run->getKey()]);
-
-        $step = $this->writeStep(
-            $run,
-            StepPhase::Forward,
-            $sequence,
-            new StepDescriptor(
-                type: StepType::Child,
-                name: $flow,
-                arguments: $arguments,
-            ),
-        );
-
-        $step->update(['status' => StepStatus::Pending, 'input' => $stored['inline'], 'input_artifact_id' => $stored['artifact_id']]);
-
-        $child = Run::query()->create([
-            'flow' => $flow,
-            'flow_class' => $this->flows->class($flow),
-            'flow_version' => $run->flow_version,
-            'status' => RunStatus::Pending,
-            'trigger' => RunTrigger::Child,
-            'input' => $stored['inline'],
-            'input_artifact_id' => $stored['artifact_id'],
-            'tags' => $tags === [] ? null : $tags,
-            'parent_run_id' => $run->getKey(),
-            'parent_sequence' => $sequence,
-            'queue_connection' => $run->queue_connection,
-            'queue' => $run->queue,
-            'close_policy' => $closePolicy,
-        ]);
-
-        // A detached child is fire-and-forget: the step completes immediately
-        // with the child's id, and the parent never waits on it.
-        if ($detached) {
-            $this->recordChildResult($step, ['run_id' => (string) $child->getKey(), 'detached' => true]);
-
-            // Nothing else will wake the parent: the child will not notify a
-            // step that is already resolved.
-            $this->dispatchDrive($run);
-        }
-
-        $this->start($child);
-    }
-
-    /**
-     * Fail steps and runs that passed their deadline.
-     *
-     * Enforced here rather than in-process: a step that has handed control to
-     * an upstream call cannot check a clock, and a killed invocation never gets
-     * the chance.
-     *
-     * @return int the number failed
-     */
-    public function enforceDeadlines(int $limit = 250): int
-    {
-        $failed = 0;
-
-        $steps = RunStep::query()
-            ->whereNotNull('expires_at')
-            ->where('expires_at', '<=', Carbon::now())
-            ->whereIn('status', [StepStatus::Pending, StepStatus::Running])
-            ->limit($limit)
-            ->get();
-
-        foreach ($steps as $step) {
-            $written = RunStep::query()
-                ->whereKey($step->getKey())
-                ->whereIn('status', [StepStatus::Pending->value, StepStatus::Running->value])
-                ->update([
-                    'status' => StepStatus::Failed->value,
-                    'error' => json_encode($this->describe(
-                        DeadlineExceededException::step($step->name, $step->sequence),
-                    )),
-                    'lease_token' => null,
-                    'leased_until' => null,
-                    'completed_at' => Carbon::now(),
-                    'updated_at' => Carbon::now(),
-                ]);
-
-            if ($written === 0) {
-                continue;
-            }
-
-            $failed++;
-
-            $run = $step->run;
-
-            if ($run instanceof Run) {
-                $this->dispatchDrive($run);
-            }
-        }
-
-        $runs = Run::query()
-            ->whereNotNull('expires_at')
-            ->where('expires_at', '<=', Carbon::now())
-            ->active()
-            ->limit($limit)
-            ->get();
-
-        foreach ($runs as $run) {
-            $this->beginCompensation($run, DeadlineExceededException::run($run->flow));
-            $failed++;
-        }
-
-        return $failed;
+        $this->children->start($run, $sequence, $flow, $arguments, $closePolicy, $tags, $detached);
     }
 
     /**
@@ -602,9 +390,7 @@ final class Engine
 
     public function dispatchDrive(Run $run): void
     {
-        $job = new DriveRun((string) $run->getKey());
-
-        $this->bus->dispatch($this->route($job, $run));
+        $this->jobs->drive($run);
     }
 
     private function driveOnce(string $runId): void
@@ -615,8 +401,10 @@ final class Engine
             return;
         }
 
-        if ($run->status === RunStatus::Compensating) {
-            $this->compensateNext($run);
+        if ($run->status === RunStatus::RollingBack) {
+            if (! $this->rollbacks->next($run)) {
+                $this->failRun($run, null);
+            }
 
             return;
         }
@@ -661,11 +449,11 @@ final class Engine
         } catch (StepFailedException $e) {
             $this->applyTags($run, $context);
 
-            $this->beginCompensation($run, $e);
+            $this->beginRollback($run, $e);
 
             return;
         } catch (HistoryMismatchException $e) {
-            // Never compensate a divergence: the recorded history no longer
+            // Never roll back a divergence: the recorded history no longer
             // describes what the code does, so a rollback would be guesswork.
             $this->failRun($run, $e);
 
@@ -673,7 +461,7 @@ final class Engine
         } catch (Throwable $e) {
             $this->applyTags($run, $context);
 
-            $this->beginCompensation($run, $e);
+            $this->beginRollback($run, $e);
 
             return;
         }
@@ -721,290 +509,59 @@ final class Engine
 
         $this->events->dispatch(new RunCompleted((string) $run->getKey()));
 
-        $this->closeChildren($run);
-        $this->notifyParent($run, $stored, null);
+        $this->children->close($run);
+        $this->children->notifyParent($run, $stored, null);
     }
 
-    private function beginCompensation(Run $run, Throwable $error): void
+    private function beginRollback(Run $run, Throwable $error): void
     {
         $run->update([
-            'status' => RunStatus::Compensating,
-            'error' => $this->describe($error),
+            'status' => RunStatus::RollingBack,
+            'error' => Failure::describe($error),
         ]);
 
-        $this->compensateNext($run);
-    }
-
-    /**
-     * Roll back the most recent compensatable step that has not been undone.
-     */
-    private function compensateNext(Run $run): void
-    {
-        // A compensation that failed decides what happens next. Without this
-        // the same target is selected again on the next drive, because it is
-        // still uncompensated — an endless rollback loop.
-        $failed = RunStep::query()
-            ->where('run_id', $run->getKey())
-            ->where('phase', StepPhase::Compensation)
-            ->where('status', StepStatus::Failed)
-            ->orderByDesc('sequence')
-            ->first();
-
-        if ($failed instanceof RunStep) {
-            if ($this->compensationHalts($failed)) {
-                $run->update([
-                    'error' => ($run->error ?? []) + [
-                        'rollback' => sprintf(
-                            'Rollback halted: the compensation [%s] failed. The run is left partly '.
-                            'compensated for inspection. Set CompensationFailure::Continue on the saga '.
-                            'group to push through instead.',
-                            $failed->name,
-                        ),
-                    ],
-                ]);
-
-                $this->failRun($run, null);
-
-                return;
-            }
-
-            // Continue: give up on this one, record that we did, and move on.
-            $failed->update(['status' => StepStatus::Skipped]);
-
-            RunStep::query()
-                ->where('run_id', $run->getKey())
-                ->where('phase', StepPhase::Forward)
-                ->where('sequence', $failed->compensates_sequence)
-                ->update(['compensated' => true]);
-        }
-
-        $target = RunStep::query()
-            ->where('run_id', $run->getKey())
-            ->where('phase', StepPhase::Forward)
-            ->where('status', StepStatus::Completed)
-            ->where('compensated', false)
-            ->whereNotNull('compensation')
-            ->orderByDesc('sequence')
-            ->first();
-
-        if (! $target instanceof RunStep) {
+        if (! $this->rollbacks->next($run)) {
             $this->failRun($run, null);
-
-            return;
-        }
-
-        // A saga group marked compensateInParallel rolls its whole group back
-        // at once; everything else unwinds one step at a time, in reverse.
-        $targets = $this->parallelGroup($target)
-            ? RunStep::query()
-                ->where('run_id', $run->getKey())
-                ->where('phase', StepPhase::Forward)
-                ->where('saga_group', $target->saga_group)
-                ->where('status', StepStatus::Completed)
-                ->where('compensated', false)
-                ->whereNotNull('compensation')
-                ->orderByDesc('sequence')
-                ->get()
-            : collect([$target]);
-
-        $sequence = (int) RunStep::query()
-            ->where('run_id', $run->getKey())
-            ->where('phase', StepPhase::Compensation)
-            ->count();
-
-        foreach ($targets as $item) {
-            /** @var array{action: string, arguments: array<int, mixed>} $compensation */
-            $compensation = $item->compensation;
-
-            $step = $this->writeStep(
-                $run,
-                StepPhase::Compensation,
-                $sequence++,
-                new StepDescriptor(
-                    type: StepType::Compensation,
-                    name: $compensation['action'],
-                    arguments: $compensation['arguments'],
-                ),
-                $item->sequence,
-            );
-
-            $this->dispatchStep($run, $step);
         }
     }
 
     /**
-     * Whether this step's saga group asked to be rolled back all at once.
+     * Roll back the most recent reversible step that has not been undone.
      */
-    private function parallelGroup(RunStep $step): bool
-    {
-        return $step->saga_group !== null
-            && is_array($step->compensation)
-            && ($step->compensation['in_parallel'] ?? false) === true;
-    }
-
     /**
-     * Whether a failed compensation should halt the rollback.
+     * Whether a failed rollback should halt the rollback.
      *
      * Stopping is the default because a half-completed rollback that keeps
      * going can compound the damage.
      */
-    public function compensationHalts(RunStep $compensationStep): bool
+    public function rollbackHalts(RunStep $rollbackStep): bool
     {
         $target = RunStep::query()
-            ->where('run_id', $compensationStep->run_id)
+            ->where('run_id', $rollbackStep->run_id)
             ->where('phase', StepPhase::Forward)
-            ->where('sequence', $compensationStep->compensates_sequence)
+            ->where('sequence', $rollbackStep->undoes_sequence)
             ->first();
 
-        if (! $target instanceof RunStep || ! is_array($target->compensation)) {
+        if (! $target instanceof RunStep || ! is_array($target->rollback)) {
             return true;
         }
 
-        return ($target->compensation['on_failure'] ?? CompensationFailure::Stop->value)
-            === CompensationFailure::Stop->value;
-    }
-
-    /**
-     * Hand a finished child's outcome back to the step its parent parked on.
-     *
-     * @param  array{inline: array<string, mixed>|null, artifact_id: string|null}|null  $stored
-     */
-    private function notifyParent(Run $run, ?array $stored, ?Throwable $error): void
-    {
-        if ($run->parent_run_id === null || $run->parent_sequence === null) {
-            return;
-        }
-
-        $parent = Run::query()->find($run->parent_run_id);
-
-        if (! $parent instanceof Run) {
-            return;
-        }
-
-        $step = RunStep::query()
-            ->where('run_id', $parent->getKey())
-            ->where('phase', StepPhase::Forward)
-            ->where('sequence', $run->parent_sequence)
-            ->where('type', StepType::Child)
-            ->first();
-
-        // A detached child's step already completed, so there is nothing to
-        // resolve and the parent is not waiting.
-        if (! $step instanceof RunStep || $step->status !== StepStatus::Pending) {
-            return;
-        }
-
-        if ($error instanceof Throwable || $run->status === RunStatus::Failed) {
-            $step->update([
-                'status' => StepStatus::Failed,
-                'error' => $error instanceof Throwable ? $this->describe($error) : $run->error,
-                'completed_at' => Carbon::now(),
-            ]);
-        } else {
-            $step->update([
-                'status' => StepStatus::Completed,
-                'result' => $stored['inline'] ?? null,
-                'result_artifact_id' => $stored['artifact_id'] ?? null,
-                'completed_at' => Carbon::now(),
-            ]);
-        }
-
-        $this->dispatchDrive($parent);
-    }
-
-    /**
-     * Apply the close policy to children still running when a parent finishes.
-     */
-    private function closeChildren(Run $run): void
-    {
-        $children = Run::query()
-            ->where('parent_run_id', $run->getKey())
-            ->active()
-            ->get();
-
-        foreach ($children as $child) {
-            if ($child->close_policy !== ChildClosePolicy::Cancel) {
-                continue;
-            }
-
-            $child->update([
-                'status' => RunStatus::Cancelled,
-                'error' => ['message' => 'Cancelled because the parent run finished.'],
-                'finished_at' => Carbon::now(),
-            ]);
-        }
-    }
-
-    /**
-     * @param  array<string, mixed>  $result
-     */
-    private function recordChildResult(RunStep $step, array $result): void
-    {
-        $stored = $this->payloads->put($result, ArtifactKind::Result, ['run_id' => $step->run_id]);
-
-        $step->update([
-            'status' => StepStatus::Completed,
-            'result' => $stored['inline'],
-            'result_artifact_id' => $stored['artifact_id'],
-            'completed_at' => Carbon::now(),
-        ]);
+        return ($target->rollback['on_failure'] ?? RollbackFailure::Halt->value)
+            === RollbackFailure::Halt->value;
     }
 
     private function failRun(Run $run, ?Throwable $error): void
     {
         $run->update([
             'status' => RunStatus::Failed,
-            'error' => $error instanceof Throwable ? $this->describe($error) : $run->error,
+            'error' => $error instanceof Throwable ? Failure::describe($error) : $run->error,
             'finished_at' => Carbon::now(),
         ]);
 
         $this->events->dispatch(new RunFailed((string) $run->getKey()));
 
-        $this->closeChildren($run);
-        $this->notifyParent($run, null, $error instanceof Throwable ? $error : null);
-    }
-
-    private function writeStep(
-        Run $run,
-        StepPhase $phase,
-        int $sequence,
-        StepDescriptor $descriptor,
-        ?int $compensates = null,
-    ): RunStep {
-        $stored = $this->payloads->put($descriptor->arguments, ArtifactKind::Payload, [
-            'run_id' => $run->getKey(),
-        ]);
-
-        return RunStep::query()->create([
-            'run_id' => $run->getKey(),
-            'phase' => $phase,
-            'sequence' => $sequence,
-            'type' => $descriptor->type,
-            'name' => $descriptor->name,
-            'status' => StepStatus::Pending,
-            'input' => $stored['inline'],
-            'input_artifact_id' => $stored['artifact_id'],
-            'compensation' => $descriptor->compensation === null ? null : $descriptor->compensation + [
-                'on_failure' => $descriptor->compensationFailure->value,
-                'in_parallel' => $descriptor->compensateInParallel,
-            ],
-            'max_attempts' => $descriptor->maxAttempts,
-            'compensates_sequence' => $compensates,
-            'saga_group' => $descriptor->sagaGroup,
-            'expires_at' => $descriptor->expiresAt ?? $this->defaultStepDeadline(),
-            'queued_at' => Carbon::now(),
-        ]);
-    }
-
-    private function writeTimer(Run $run, int $sequence, TimerKind $kind, DateTimeInterface $wakeAt): void
-    {
-        Timer::query()->create([
-            'run_id' => $run->getKey(),
-            'phase' => StepPhase::Forward,
-            'sequence' => $sequence,
-            'kind' => $kind,
-            'wake_at' => $wakeAt,
-        ]);
+        $this->children->close($run);
+        $this->children->notifyParent($run, null, $error instanceof Throwable ? $error : null);
     }
 
     private function invoke(RunStep $step): mixed
@@ -1023,7 +580,7 @@ final class Engine
 
             $action->withCheckpoint(
                 is_array($cursor) && is_string($cursor['value'] ?? null) ? $cursor['value'] : null,
-                StepDeadline::in($this->maxStepSeconds(), $this->resumeMargin()),
+                StepDeadline::in($this->options->maxStepSeconds(), $this->options->resumeMargin()),
             );
         }
 
@@ -1052,7 +609,7 @@ final class Engine
             return;
         }
 
-        if ($step->resumptions >= $this->maxResumptions()) {
+        if ($step->resumptions >= $this->options->maxResumptions()) {
             $this->recordFailure($step, $token, StalledStepException::resumptions($step->name, $step->resumptions));
 
             return;
@@ -1077,7 +634,7 @@ final class Engine
         $run = Run::query()->find($step->run_id);
 
         if ($run instanceof Run) {
-            $this->dispatchStep($run, $step, $resume->delaySeconds ?? 0);
+            $this->jobs->step($run, $step, $resume->delaySeconds ?? 0);
         }
     }
 
@@ -1106,12 +663,12 @@ final class Engine
             return;
         }
 
-        if ($step->phase === StepPhase::Compensation && $step->compensates_sequence !== null) {
+        if ($step->phase === StepPhase::Rollback && $step->undoes_sequence !== null) {
             RunStep::query()
                 ->where('run_id', $step->run_id)
                 ->where('phase', StepPhase::Forward)
-                ->where('sequence', $step->compensates_sequence)
-                ->update(['compensated' => true]);
+                ->where('sequence', $step->undoes_sequence)
+                ->update(['undone' => true]);
         }
 
         $this->events->dispatch(new StepCompleted((string) $step->run_id, (string) $step->getKey()));
@@ -1135,12 +692,12 @@ final class Engine
                     'status' => StepStatus::Pending->value,
                     'lease_token' => null,
                     'leased_until' => null,
-                    'error' => json_encode($this->describe($error)),
+                    'error' => json_encode(Failure::describe($error)),
                     'updated_at' => Carbon::now(),
                 ]);
 
             if ($run instanceof Run) {
-                $this->dispatchStep($run, $step, $this->backoffSeconds($step->attempts));
+                $this->jobs->step($run, $step, $this->options->backoffSeconds($step->attempts));
             }
 
             return;
@@ -1153,7 +710,7 @@ final class Engine
                 'status' => StepStatus::Failed->value,
                 'lease_token' => null,
                 'leased_until' => null,
-                'error' => json_encode($this->describe($error)),
+                'error' => json_encode(Failure::describe($error)),
                 'completed_at' => Carbon::now(),
                 'updated_at' => Carbon::now(),
             ]);
@@ -1163,120 +720,5 @@ final class Engine
         if ($run instanceof Run) {
             $this->dispatchDrive($run);
         }
-    }
-
-    private function dispatchStep(Run $run, RunStep $step, int $delay = 0): void
-    {
-        $job = new ExecuteStep((string) $run->getKey(), $step->phase->value, $step->sequence);
-
-        if ($delay > 0) {
-            $job->delay($delay);
-        }
-
-        $this->bus->dispatch($this->route($job, $run));
-    }
-
-    /**
-     * @template TJob of DriveRun|ExecuteStep|SeedBatch
-     *
-     * @param  TJob  $job
-     * @return TJob
-     */
-    private function route(DriveRun|ExecuteStep|SeedBatch $job, Run $run): DriveRun|ExecuteStep|SeedBatch
-    {
-        /** @var string|null $connection */
-        $connection = $run->queue_connection ?? $this->config->get('impex.queue.connection');
-
-        /** @var string|null $queue */
-        $queue = $run->queue ?? $this->config->get('impex.queue.queue');
-
-        if ($connection !== null) {
-            $job->onConnection($connection);
-        }
-
-        if ($queue !== null) {
-            $job->onQueue($queue);
-        }
-
-        return $job;
-    }
-
-    /**
-     * @return array<string, mixed>
-     */
-    private function describe(Throwable $error): array
-    {
-        return [
-            'class' => $error::class,
-            'message' => $error->getMessage(),
-            'file' => $error->getFile(),
-            'line' => $error->getLine(),
-        ];
-    }
-
-    private function backoffSeconds(int $attempts): int
-    {
-        return min(60 * $attempts, 900);
-    }
-
-    /**
-     * The default step deadline, if the application configured one.
-     */
-    private function defaultStepDeadline(): ?Carbon
-    {
-        /** @var int|null $seconds */
-        $seconds = $this->config->get('impex.deadlines.step');
-
-        return $seconds === null ? null : Carbon::now()->addSeconds($seconds);
-    }
-
-    private function lockKey(string $runId): string
-    {
-        return 'impex:run:'.$runId;
-    }
-
-    private function dirtyKey(string $runId): string
-    {
-        return 'impex:run:'.$runId.':dirty';
-    }
-
-    private function lockSeconds(): int
-    {
-        /** @var int $seconds */
-        $seconds = $this->config->get('impex.limits.lock_seconds', 120);
-
-        return $seconds;
-    }
-
-    private function maxStepSeconds(): int
-    {
-        /** @var int $seconds */
-        $seconds = $this->config->get('impex.limits.max_step_seconds', 840);
-
-        return $seconds;
-    }
-
-    private function resumeMargin(): int
-    {
-        /** @var int $seconds */
-        $seconds = $this->config->get('impex.limits.resume_margin_seconds', 30);
-
-        return $seconds;
-    }
-
-    private function maxResumptions(): int
-    {
-        /** @var int $max */
-        $max = $this->config->get('impex.limits.max_resumptions', 10000);
-
-        return $max;
-    }
-
-    private function leaseSeconds(): int
-    {
-        /** @var int $seconds */
-        $seconds = $this->config->get('impex.limits.lease_seconds', 900);
-
-        return $seconds;
     }
 }

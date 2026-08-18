@@ -52,9 +52,14 @@ These are load-bearing. Changing any of them changes correctness, not style.
   `pruning()` and would orphan every stored object.
 - Artifact retention must never be shorter than the retention of the rows
   pointing at artifacts.
-- Compensation is captured when the forward step is recorded, so rollback never
-  replays the flow. That is why `compensateWith()` takes a class, not a closure.
+- A rollback is captured when the forward step is recorded, so unwinding never
+  replays the flow. That is why `undoWith()` takes a class, not a closure.
+- The vocabulary is deliberately plain: unit, rollback, undo. Do not reintroduce
+  saga jargon.
 - Replay is O(history) per drive. Per-item fan-out is capped; large collections
   use `batch()`, whose per-item state lives outside the replay log.
+- Engine collaborators are resolved from the container, not newed up. Adding
+  behaviour means a new collaborator or a decorated contract, not another method
+  on Engine.
 - Table names are hardcoded, matching cortex. A configurable prefix would break
   the literal table names in the static `rules()` convention.

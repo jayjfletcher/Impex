@@ -16,7 +16,7 @@ $decision = $this->signal('approval')
     ->default(['approved' => false])      // what a timed out wait returns
     ->wait();
 
-// Or make a missing signal a failure worth compensating for.
+// Or make a missing signal a failure worth rolling back for.
 $decision = $this->signal('approval')
     ->timeoutAfter(now()->addDays(3))
     ->orFail()                            // throws SignalTimeoutException

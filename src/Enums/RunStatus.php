@@ -9,7 +9,7 @@ enum RunStatus: string
     case Pending = 'pending';
     case Running = 'running';
     case Waiting = 'waiting';
-    case Compensating = 'compensating';
+    case RollingBack = 'rolling_back';
     case Completed = 'completed';
     case Failed = 'failed';
     case Cancelled = 'cancelled';

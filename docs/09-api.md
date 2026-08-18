@@ -81,7 +81,7 @@ second one. A flow disabled by an `impex_flows` override is refused.
 
 | Filter | Notes |
 |---|---|
-| `status` | `pending` `running` `waiting` `compensating` `completed` `failed` `cancelled` |
+| `status` | `pending` `running` `waiting` `rolling back` `completed` `failed` `cancelled` |
 | `flow` | slug |
 | `trigger` | `api` `mcp` `command` `schedule` `channel` `code` `child` |
 | `owner_type` + `owner_id` | both required together |
@@ -120,8 +120,8 @@ Includes `owners` and the forward `steps`.
         "attempts": 1,
         "max_attempts": 1,
         "resumptions": 0,
-        "compensated": false,
-        "compensates_sequence": null,
+        "rolled back": false,
+        "undoes_sequence": null,
         "error": null,
         "has_result": true,
         "result_artifact_id": null,
@@ -153,7 +153,7 @@ A run that has already finished is returned unchanged.
 
 ### `GET impex/runs/{run}/steps`
 
-`?phase=forward` or `?phase=compensation`. Omit for both, ordered by phase then
+`?phase=forward` or `?phase=rollback`. Omit for both, ordered by phase then
 sequence.
 
 ## Signals

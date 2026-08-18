@@ -28,7 +28,7 @@ use PHPUnit\Framework\Assert;
  *
  *   Flows::assertCompleted($run);
  *   Flows::assertStepRan($run, FetchPricing::class, times: 1);
- *   Flows::assertCompensated($run, RollbackPimWrite::class);
+ *   Flows::assertRolledBack($run, RollbackPimWrite::class);
  *
  * A class rather than a trait so it works from Pest's functional style as
  * readily as from a TestCase.
@@ -147,10 +147,10 @@ final class Flows
     /**
      * Assert a rollback ran for the run.
      */
-    public static function assertCompensated(Run $run, ?string $action = null): void
+    public static function assertRolledBack(Run $run, ?string $action = null): void
     {
         $query = $run->steps()
-            ->where('phase', StepPhase::Compensation)
+            ->where('phase', StepPhase::Rollback)
             ->where('status', StepStatus::Completed);
 
         if ($action !== null) {
@@ -160,16 +160,16 @@ final class Flows
         Assert::assertTrue(
             $query->exists(),
             $action === null
-                ? 'Expected the run to have compensated, but no rollback step completed.'
-                : sprintf('Expected [%s] to have compensated the run.', $action),
+                ? 'Expected the run to have undone, but no rollback step completed.'
+                : sprintf('Expected [%s] to have rolled back the run.', $action),
         );
     }
 
-    public static function assertNotCompensated(Run $run): void
+    public static function assertNotRolledBack(Run $run): void
     {
         Assert::assertFalse(
-            $run->steps()->where('phase', StepPhase::Compensation)->exists(),
-            'Expected the run not to have compensated, but a rollback step was recorded.',
+            $run->steps()->where('phase', StepPhase::Rollback)->exists(),
+            'Expected the run not to have undone, but a rollback step was recorded.',
         );
     }
 

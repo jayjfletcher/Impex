@@ -99,7 +99,7 @@ $this->action(FetchPricing::class, $skus)->expiresAt(now()->addMinutes(10))->run
 Enforcement happens in `impex:tick`, **not in-process**: a step that has handed
 control to an upstream call cannot check a clock, and a killed invocation never
 gets the chance. A step that passes its deadline fails and unwinds the run like
-any other failure; a run that passes its own compensates.
+any other failure; a run that passes its own roll backs.
 
 This is the other half of the lease discipline. A lease stops a *killed*
 invocation wedging a run; a deadline stops a *hung* one running forever.

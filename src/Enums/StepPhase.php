@@ -14,5 +14,5 @@ enum StepPhase: string
     /**
      * Steps recorded while rolling the flow back.
      */
-    case Compensation = 'compensation';
+    case Rollback = 'rollback';
 }

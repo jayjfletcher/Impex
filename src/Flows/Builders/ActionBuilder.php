@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace JayI\Impex\Flows\Builders;
 
 use DateTimeInterface;
-use JayI\Impex\Enums\CompensationFailure;
+use JayI\Impex\Enums\RollbackFailure;
 use JayI\Impex\Enums\StepType;
 use JayI\Impex\Runtime\Context;
 use JayI\Impex\Runtime\StepDescriptor;
@@ -16,7 +16,7 @@ use JayI\Impex\Runtime\StepDescriptor;
 final class ActionBuilder
 {
     /** @var array{action: string, arguments: array<int, mixed>}|null */
-    private ?array $compensation = null;
+    private ?array $rollback = null;
 
     private int $maxAttempts = 1;
 
@@ -26,11 +26,11 @@ final class ActionBuilder
 
     private ?DateTimeInterface $expiresAt = null;
 
-    private ?string $sagaGroup = null;
+    private ?string $unitId = null;
 
-    private CompensationFailure $compensationFailure = CompensationFailure::Stop;
+    private RollbackFailure $rollbackFailure = RollbackFailure::Halt;
 
-    private bool $compensateInParallel = false;
+    private bool $rollbackTogether = false;
 
     /**
      * @param  array<int, mixed>  $arguments
@@ -44,13 +44,13 @@ final class ActionBuilder
     /**
      * Register the rollback for this step.
      *
-     * Captured when the forward step is recorded, so compensation never has to
+     * Captured when the forward step is recorded, so rollback never has to
      * replay the flow to discover it. Class-based rather than a closure for the
      * same reason — a closure cannot be stored.
      */
-    public function compensateWith(string $action, mixed ...$arguments): self
+    public function undoWith(string $action, mixed ...$arguments): self
     {
-        $this->compensation = [
+        $this->rollback = [
             'action' => $action,
             'arguments' => array_values($arguments),
         ];
@@ -91,18 +91,18 @@ final class ActionBuilder
     }
 
     /**
-     * Mark this step as part of a saga group, sharing its rollback policy.
+     * Mark this step as part of a unit group, sharing its rollback policy.
      *
-     * Called by SagaBuilder; there is no reason to call it directly.
+     * Called by UnitBuilder; there is no reason to call it directly.
      */
-    public function inSaga(
+    public function inUnit(
         string $group,
-        CompensationFailure $onFailure,
+        RollbackFailure $onFailure,
         bool $inParallel,
     ): self {
-        $this->sagaGroup = $group;
-        $this->compensationFailure = $onFailure;
-        $this->compensateInParallel = $inParallel;
+        $this->unitId = $group;
+        $this->rollbackFailure = $onFailure;
+        $this->rollbackTogether = $inParallel;
 
         return $this;
     }
@@ -116,14 +116,14 @@ final class ActionBuilder
             type: StepType::Action,
             name: $this->action,
             arguments: $this->arguments,
-            compensation: $this->compensation,
+            rollback: $this->rollback,
             maxAttempts: $this->maxAttempts,
             continueOnFailure: $this->continueOnFailure,
             fallback: $this->fallback,
             expiresAt: $this->expiresAt,
-            sagaGroup: $this->sagaGroup,
-            compensationFailure: $this->compensationFailure,
-            compensateInParallel: $this->compensateInParallel,
+            unitId: $this->unitId,
+            rollbackFailure: $this->rollbackFailure,
+            rollbackTogether: $this->rollbackTogether,
         );
     }
 

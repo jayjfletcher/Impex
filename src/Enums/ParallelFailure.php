@@ -14,5 +14,5 @@ enum ParallelFailure: string
     /**
      * Let every branch settle, then fail if any did.
      */
-    case WaitAllThenFail = 'wait_all_then_fail';
+    case SettleAll = 'settle_all';
 }

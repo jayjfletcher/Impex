@@ -1,6 +1,6 @@
-# Compensation
+# Rollback
 
-When a step fails terminally, the run enters `compensating` and walks the
+When a step fails terminally, the run enters `rolling back` and walks the
 recorded steps **in reverse**, running each registered rollback.
 
 ```php
@@ -9,11 +9,11 @@ final class CheckoutFlow extends Flow
     public function handle(string $orderId): array
     {
         $charge = $this->action(ChargeCard::class, $orderId)
-            ->compensateWith(RefundCard::class, $orderId)
+            ->undoWith(RefundCard::class, $orderId)
             ->run();
 
         $this->action(ReserveStock::class, $orderId)
-            ->compensateWith(ReleaseStock::class, $orderId)
+            ->undoWith(ReleaseStock::class, $orderId)
             ->run();
 
         $this->action(ShipOrder::class, $orderId)->run();   // no rollback: shipping is final
@@ -30,66 +30,66 @@ fails: only `RefundCard` runs.
 
 ```php
 // Not supported.
-->compensateWith(fn () => Reservation::release($id))
+->undoWith(fn () => Reservation::release($id))
 ```
 
-The rollback is captured **when the forward step is recorded**, so compensation
+The rollback is captured **when the forward step is recorded**, so rollback
 never has to replay the flow to discover what to undo — which matters, because
 the flow may have already diverged by the time you are rolling back. A closure
 cannot be stored in a database column; a class name and its arguments can.
 
-## Compensation is a phase, not a step
+## Rollback is a phase, not a step
 
-Compensation steps live in their own sequence space, `phase = compensation`, so
+Rollback steps live in their own sequence space, `phase = rollback`, so
 they never collide with the forward history the replay reads.
 
 ```php
-$run->steps()->where('phase', StepPhase::Compensation)->get();
+$run->steps()->where('phase', StepPhase::Rollback)->get();
 ```
 
 ```
-GET impex/runs/{run}/steps?phase=compensation
+GET impex/runs/{run}/steps?phase=rollback
 ```
 
 In the dashboard the rollback path renders on a dashed rail beneath the forward
 timeline.
 
-## When a compensation itself fails
+## When a rollback itself fails
 
-Set per saga group:
+Set per unit group:
 
 ```php
-$this->saga()
-    ->onCompensationFailure(CompensationFailure::Continue)
-    ->step(ChargeCard::class, $id)->compensateWith(RefundCard::class, $id)
+$this->unit()
+    ->onRollbackFailure(RollbackFailure::Continue)
+    ->step(ChargeCard::class, $id)->undoWith(RefundCard::class, $id)
     ->run();
 ```
 
 | Policy | Behaviour |
 |---|---|
-| `CompensationFailure::Stop` (default) | Rollback halts. The run fails with a `rollback` note in its error saying which compensation failed, and is left partly compensated for inspection. |
-| `CompensationFailure::Continue` | The failed rollback is marked skipped, its target is recorded as compensated, and the rollback moves on. |
+| `RollbackFailure::Halt` (default) | Rollback halts. The run fails with a `rollback` note in its error saying which rollback failed, and is left partly rolled back for inspection. |
+| `RollbackFailure::Continue` | The failed rollback is marked skipped, its target is recorded as rolled back, and the rollback moves on. |
 
 Marking the failed one skipped matters: without it the same target is selected
-again on the next drive, because it is still uncompensated — an endless loop.
+again on the next drive, because it is still unrolled back — an endless loop.
 
 Stopping is the default because a half-completed rollback that keeps going can
 compound the damage — releasing stock for an order whose refund failed leaves
 you worse off than stopping and paging someone.
 
-## What compensation cannot undo
+## What rollback cannot undo
 
 - **A `HistoryMismatchException`.** The recorded history no longer describes the
-  code, so the engine fails the run without compensating rather than guessing.
+  code, so the engine fails the run without rolling back rather than guessing.
 - **Batched items.** `batch()` rolls back as a unit, not item by item. Use
   `fanOut()` when a single item failing should unwind the run individually.
-- **Anything the compensation action does not implement.** A rollback is
+- **Anything the rollback action does not implement.** A rollback is
   ordinary code; the engine only guarantees it is called, with the arguments
   captured at the time.
 
 ## Idempotent rollbacks
 
-A compensation step is leased and reclaimable like any other, so it can run more
+A rollback step is leased and reclaimable like any other, so it can run more
 than once if an invocation is killed after doing its work but before recording
 it. Write rollbacks that tolerate that:
 

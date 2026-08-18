@@ -10,7 +10,7 @@ enum StepStatus: string
     case Running = 'running';
     case Completed = 'completed';
     case Failed = 'failed';
-    case Compensated = 'compensated';
+    case Undone = 'undone';
     case Skipped = 'skipped';
 
     /**

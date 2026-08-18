@@ -125,7 +125,7 @@ Sequence 3 is the fourth DSL call. Count them in `handle()` — including
 `sideEffect`, `awaitSignal`, `sleepUntil`, and each `parallel()` branch — to
 find the point of divergence.
 
-A run that hits this is **not compensated**. The recorded history no longer
+A run that hits this is **not rolled back**. The recorded history no longer
 describes what the code does, so a rollback would be guesswork; the run fails
 and is left for you to inspect.
 

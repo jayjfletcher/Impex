@@ -56,10 +56,10 @@ return new class extends Migration
             $table->foreignUlid('result_artifact_id')->nullable()
                 ->constrained('impex_artifacts')->nullOnDelete();
             $table->json('error')->nullable();
-            // The compensation is captured when the forward step is recorded,
+            // The rollback is captured when the forward step is recorded,
             // so rollback never needs to replay the flow to discover it.
-            $table->json('compensation')->nullable();
-            $table->boolean('compensated')->default(false);
+            $table->json('rollback')->nullable();
+            $table->boolean('undone')->default(false);
             $table->unsignedInteger('attempts')->default(0);
             $table->unsignedInteger('max_attempts')->default(1);
             // A step that cannot finish inside one invocation yields a cursor
@@ -72,10 +72,10 @@ return new class extends Migration
             // cannot wedge the run.
             $table->ulid('lease_token')->nullable();
             $table->timestamp('leased_until')->nullable()->index();
-            $table->unsignedInteger('compensates_sequence')->nullable();
-            // Groups steps declared inside one saga() block, so a rollback can
+            $table->unsignedInteger('undoes_sequence')->nullable();
+            // Groups steps declared inside one unit() block, so a rollback can
             // find a step's peers and apply the group's policy to them.
-            $table->string('saga_group', 26)->nullable()->index();
+            $table->string('unit_id', 26)->nullable()->index();
             $table->timestamp('expires_at')->nullable();
             $table->timestamp('queued_at')->nullable();
             $table->timestamp('started_at')->nullable();

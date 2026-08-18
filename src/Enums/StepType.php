@@ -7,7 +7,7 @@ namespace JayI\Impex\Enums;
 enum StepType: string
 {
     case Action = 'action';
-    case Compensation = 'compensation';
+    case Rollback = 'rollback';
     case SideEffect = 'side_effect';
     case Signal = 'signal';
     case FanOut = 'fan_out';

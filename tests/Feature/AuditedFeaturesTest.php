@@ -3,7 +3,7 @@
 declare(strict_types=1);
 
 use Illuminate\Support\Carbon;
-use JayI\Impex\Enums\CompensationFailure;
+use JayI\Impex\Enums\RollbackFailure;
 use JayI\Impex\Enums\RunStatus;
 use JayI\Impex\Enums\RunTrigger;
 use JayI\Impex\Enums\StepPhase;
@@ -23,8 +23,8 @@ use JayI\Impex\Tests\Fixtures\DeadlineFlow;
 use JayI\Impex\Tests\Fixtures\LinearFlow;
 use JayI\Impex\Tests\Fixtures\OptionalFlow;
 use JayI\Impex\Tests\Fixtures\Rollback;
-use JayI\Impex\Tests\Fixtures\SagaFlow;
 use JayI\Impex\Tests\Fixtures\SignalFlow;
+use JayI\Impex\Tests\Fixtures\UnitFlow;
 use JayI\Impex\Tests\Fixtures\VersionedFlow;
 
 beforeEach(function (): void {
@@ -35,7 +35,7 @@ beforeEach(function (): void {
         'signal' => SignalFlow::class,
         'versioned' => VersionedFlow::class,
         'optional' => OptionalFlow::class,
-        'saga' => SagaFlow::class,
+        'unit' => UnitFlow::class,
         'deadline' => DeadlineFlow::class,
     ]);
 });
@@ -64,7 +64,7 @@ it('fails a step that passed its deadline, and unwinds the run', function (): vo
 
     // A deadline is an ordinary failure, so the rollback runs like any other.
     Flows::assertFailed($run);
-    Flows::assertCompensated($run->refresh(), Rollback::class);
+    Flows::assertRolledBack($run->refresh(), Rollback::class);
 });
 
 it('fails a run that passed its own deadline', function (): void {
@@ -155,65 +155,65 @@ it('carries on past an optional action that failed', function (): void {
     expect(app(Impex::class)->result($run->refresh()))->toBe(['result' => null])
         ->and(Calls::count('after-optional'))->toBe(1);
 
-    Flows::assertNotCompensated($run);
+    Flows::assertNotRolledBack($run);
 });
 
-// ----------------------------------------------------------------- saga group
+// ----------------------------------------------------------------- unit group
 
 it('groups steps and rolls the whole group back', function (): void {
-    $run = app(Impex::class)->run('saga');
+    $run = app(Impex::class)->run('unit');
 
     Flows::assertFailed($run);
 
-    // Both compensations ran, newest first.
+    // Both rollbacks ran, newest first.
     expect(Calls::count('rollback:second'))->toBe(1)
         ->and(Calls::count('rollback:first'))->toBe(1);
 
-    $group = $run->refresh()->forwardSteps()->whereNotNull('saga_group')->pluck('saga_group')->unique();
+    $group = $run->refresh()->forwardSteps()->whereNotNull('unit_id')->pluck('unit_id')->unique();
 
     expect($group)->toHaveCount(1);
 });
 
 it('rolls a parallel group back in one pass', function (): void {
-    $run = app(Impex::class)->run('saga', [true]);
+    $run = app(Impex::class)->run('unit', [true]);
 
     Flows::assertFailed($run);
 
-    // Both compensation steps were written together rather than one per drive.
-    expect($run->refresh()->steps()->where('phase', StepPhase::Compensation)->count())->toBe(2)
+    // Both rollback steps were written together rather than one per drive.
+    expect($run->refresh()->steps()->where('phase', StepPhase::Rollback)->count())->toBe(2)
         ->and(Calls::count('rollback:first'))->toBe(1)
         ->and(Calls::count('rollback:second'))->toBe(1);
 });
 
-it('halts the rollback when a compensation fails under the Stop policy', function (): void {
-    $run = app(Impex::class)->run('saga');
+it('halts the rollback when a rollback fails under the Halt policy', function (): void {
+    $run = app(Impex::class)->run('unit');
 
     // Break the newest rollback and replay it: Stop is the default.
     $run->refresh()->steps()
-        ->where('phase', StepPhase::Compensation)
+        ->where('phase', StepPhase::Rollback)
         ->update(['status' => StepStatus::Failed]);
 
-    $run->update(['status' => RunStatus::Compensating, 'finished_at' => null]);
+    $run->update(['status' => RunStatus::RollingBack, 'finished_at' => null]);
 
     app(Engine::class)->drive((string) $run->getKey());
 
     expect($run->refresh()->status)->toBe(RunStatus::Failed)
-        ->and($run->error['rollback'])->toContain('Rollback halted');
+        ->and($run->error['rollback'])->toContain('Unwind halted');
 });
 
-it('pushes through a failed compensation under the Continue policy', function (): void {
-    $run = app(Impex::class)->run('saga', [false, CompensationFailure::Continue->value]);
+it('pushes through a failed rollback under the Continue policy', function (): void {
+    $run = app(Impex::class)->run('unit', [false, RollbackFailure::Continue->value]);
 
     Flows::assertFailed($run);
 
     // Fail the first rollback that ran and let the engine carry on.
     $first = $run->refresh()->steps()
-        ->where('phase', StepPhase::Compensation)
+        ->where('phase', StepPhase::Rollback)
         ->orderBy('sequence')
         ->first();
 
     $first->update(['status' => StepStatus::Failed]);
-    $run->update(['status' => RunStatus::Compensating, 'finished_at' => null]);
+    $run->update(['status' => RunStatus::RollingBack, 'finished_at' => null]);
 
     app(Engine::class)->drive((string) $run->getKey());
 
@@ -258,7 +258,7 @@ it('ships helpers that assert what a flow did', function (): void {
     Flows::assertStepRan($run, AddOne::class, 1);
     Flows::assertStepDidNotRun($run, AlwaysFails::class);
     Flows::assertForwardStepCount($run, 2);
-    Flows::assertNotCompensated($run);
+    Flows::assertNotRolledBack($run);
 });
 
 it('proves redelivery does not repeat a side effect', function (): void {

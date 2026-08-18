@@ -23,7 +23,7 @@ final class ListRunStepsTool extends Tool
     {
         return [
             'run' => $schema->string()->description('The run id.')->required(),
-            'phase' => $schema->string()->description('forward or compensation. Omit for both.'),
+            'phase' => $schema->string()->description('forward or rollback. Omit for both.'),
         ];
     }
 }

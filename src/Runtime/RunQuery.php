@@ -108,9 +108,9 @@ final class RunQuery
         return $this->whereStatus(RunStatus::Cancelled);
     }
 
-    public function compensating(): self
+    public function rollingBack(): self
     {
-        return $this->whereStatus(RunStatus::Compensating);
+        return $this->whereStatus(RunStatus::RollingBack);
     }
 
     /**

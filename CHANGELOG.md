@@ -5,7 +5,7 @@
 ### Added
 
 - Replay engine: deterministic `handle()` replay, lease-before-execute step
-  claiming, compensation, `parallel()`, `sideEffect()`, signals and timers
+  claiming, rollback, `parallel()`, `sideEffect()`, signals and timers
 - Resume protocol (`ResumableAction`) so a step can span more invocations than
   the platform's execution ceiling allows, checkpointing before it is killed
 - `fanOut()` with a collection fingerprint, optional `keyBy()`, and a
@@ -34,10 +34,26 @@
   and a guard that refuses a slug repointed at a different class
 - Deadlines on runs and steps, enforced by `impex:tick`
 - `Impex::runSync()`, and `wait: true` on the trigger endpoint and MCP tool
-- `saga()` groups with `onCompensationFailure()` and `compensateInParallel()`
+- `unit()` groups with `onRollbackFailure()` and `rollbackTogether()`
 - `optionalAction()`
 - `Impex::query()` with `handles()`, and `Impex::handle()`
 - `JayI\Impex\Testing\Flows` assertion helpers
+
+### Changed
+
+- Renamed the rollback vocabulary away from saga jargon: `saga()` is now
+  `unit()`, `compensateWith()` is `undoWith()`, `CompensationFailure` is
+  `RollbackFailure` (with `Halt` in place of `Stop`), the compensation phase is
+  the rollback phase, and `RunStatus::Compensating` is `RollingBack`.
+- Broke the engine into collaborators resolved from the container —
+  `EngineOptions`, `JobRouter`, `StepWriter`, `Rollbacks`, `Children`, `Waits`
+  and `Sweeper` — so an application can replace one without forking. `Engine`
+  drops from 1,282 lines to ~720 and is now a facade over them.
+- `RollbackStrategy` is a contract, so unwind order and policy are swappable.
+- `impex:tick` is presentation only; the passes live in `Sweeper` and return a
+  `SweepReport` you can call from a job or a health check.
+- `EngineOptions` validates that `lease_seconds` exceeds `max_step_seconds`,
+  which previously would have surfaced as a slow step running twice.
 
 ### Fixed
 
@@ -50,7 +66,7 @@
 - `flow_version` was never written, so the divergence detection the docs
   described did not exist.
 - `impex.limits.sync_seconds` was configuration with no code behind it.
-- A failed compensation re-selected the same target on the next drive, looping
+- A failed rollback re-selected the same target on the next drive, looping
   the rollback forever. It now halts or skips according to the group's policy.
 
 - Flow registry precedence no longer depends on boot order. Application config

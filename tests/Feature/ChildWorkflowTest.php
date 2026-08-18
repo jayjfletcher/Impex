@@ -59,13 +59,13 @@ it('records the child as a single step in the parent history', function (): void
     expect($parent->forwardSteps()->first()->type)->toBe(StepType::Child);
 });
 
-it('fails the parent step when the child fails, and compensates the parent', function (): void {
+it('fails the parent step when the child fails, and roll backs the parent', function (): void {
     $parent = app(Impex::class)->run('failing-parent');
 
     Flows::assertFailed($parent);
 
     // The parent unwinds its own work, exactly as any failed step would.
-    Flows::assertCompensated($parent->refresh(), Rollback::class);
+    Flows::assertRolledBack($parent->refresh(), Rollback::class);
 
     expect(Calls::count('never-reached'))->toBe(0);
 });

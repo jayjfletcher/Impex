@@ -188,14 +188,14 @@ final class Context
     }
 
     /**
-     * A stable identifier for the saga group opening at this point.
+     * A stable identifier for the unit group opening at this point.
      *
      * Derived from the replay cursor rather than a random value, so the same
      * group gets the same id on every drive.
      */
-    public function sagaGroupId(): string
+    public function unitId(): string
     {
-        return 'saga-'.$this->cursor;
+        return 'unit-'.$this->cursor;
     }
 
     /**

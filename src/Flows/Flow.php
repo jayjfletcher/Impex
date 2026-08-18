@@ -11,8 +11,8 @@ use JayI\Impex\Flows\Builders\BatchBuilder;
 use JayI\Impex\Flows\Builders\ChildBuilder;
 use JayI\Impex\Flows\Builders\FanOutBuilder;
 use JayI\Impex\Flows\Builders\ParallelBuilder;
-use JayI\Impex\Flows\Builders\SagaBuilder;
 use JayI\Impex\Flows\Builders\SignalBuilder;
+use JayI\Impex\Flows\Builders\UnitBuilder;
 use JayI\Impex\Runtime\Context;
 use RuntimeException;
 
@@ -55,7 +55,7 @@ abstract class Flow
     }
 
     /**
-     * Run a unit of work as a recorded, retryable, compensatable step.
+     * Run a unit of work as a recorded, retryable, reversible step.
      */
     final protected function action(string $action, mixed ...$arguments): ActionBuilder
     {
@@ -76,16 +76,16 @@ abstract class Flow
     /**
      * Group steps under one rollback policy.
      */
-    final protected function saga(): SagaBuilder
+    final protected function unit(): UnitBuilder
     {
-        return new SagaBuilder($this->context());
+        return new UnitBuilder($this->context());
     }
 
     /**
      * Run another flow as a child of this one.
      *
      * The child is a run in its own right, with its own history and its own
-     * compensation, linked back by parent_run_id.
+     * rollback, linked back by parent_run_id.
      */
     final protected function child(string $flow, mixed ...$arguments): ChildBuilder
     {
@@ -114,7 +114,7 @@ abstract class Flow
     /**
      * Run one action per item in a collection.
      *
-     * Each item becomes its own recorded step, so items retry and compensate
+     * Each item becomes its own recorded step, so items retry and roll back
      * individually. Replay is O(history) per drive, so this is capped at
      * `impex.limits.fan_out_max` — use batch() above it.
      *

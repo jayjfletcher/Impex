@@ -127,7 +127,7 @@ raises `FanOutTooLargeException` above it. Use `batch()` for anything larger:
 one step in the replay history whatever the item count, with per-item state in
 `impex_batch_items`, which the replay never reads.
 
-The tradeoff: batched items get no per-item compensation, no positional results,
+The tradeoff: batched items get no per-item rollback, no positional results,
 and no per-item signals. Use `fanOut` when one item failing should unwind the
 run item-by-item; use `batch` for throughput.
 

@@ -52,7 +52,7 @@ final class ExtractProductsFlow extends Flow
             ->run();
 
         $this->action(WriteToPim::class, $hits, $pricing, $inventory)
-            ->compensateWith(RollbackPimWrite::class, $hits)
+            ->undoWith(RollbackPimWrite::class, $hits)
             ->run();
 
         return ['products' => count($hits)];
@@ -112,7 +112,7 @@ Two different ceilings, two different tools:
   (default 100), `batch()` above it. Replay is O(history) per drive, so
   per-item steps do not scale.
 - **A different workflow entirely** — `child()`. The child is a run in its own
-  right with its own compensation, and the parent parks on it.
+  right with its own rollback, and the parent parks on it.
 - **Work that may hang rather than fail** — a deadline. `expiresAt()` on a step,
   `expiresAt:` on a run, or defaults in `impex.deadlines`. Enforced by
   `impex:tick`, because a step inside an upstream call cannot check a clock.
@@ -161,8 +161,8 @@ Enable `impex.ui` behind admin middleware for the dashboard, or use the
 decides who may load the dashboard, `impex.routes.middleware` decides who may
 call the API. `impex.ui.auth.mode` decides how the dashboard authenticates to
 that API — `session`, `token`, `oauth` (PKCE, for Passport), or `custom`. A run at `waiting` is blocked on a signal or a
-timer, not stuck. A failed run may have compensated — check the steps with
-phase `compensation` to see what was rolled back.
+timer, not stuck. A failed run may have rolled back — check the steps with
+phase `rollback` to see what was rolled back.
 
 ## Rules, References, and Templates
 
@@ -172,7 +172,7 @@ Read before executing:
 - `references/serverless.md` — timeouts, payload limits, long waits, resume
 
 The package's own `docs/` directory carries the full reference: the DSL
-(`02-flows.md`), compensation (`04-compensation.md`), scale (`06-scale.md`),
+(`02-flows.md`), rollback (`04-rollback.md`), scale (`06-scale.md`),
 the ledger (`07-ledger.md`), the API (`09-api.md`), MCP (`10-mcp.md`), and
 every config key (`13-configuration.md`).
 
@@ -199,7 +199,7 @@ every config key (`13-configuration.md`).
   `handle()` re-runs on every drive while an action runs once
 - **do not** pass Eloquent models or closures as action arguments; pass
   identifiers and re-resolve inside the action
-- **do not** use a closure for `compensateWith()` — the rollback is captured
+- **do not** use a closure for `undoWith()` — the rollback is captured
   when the forward step is recorded, so it must be a class name
 - **do not** assume an action runs exactly once because the step is leased: a
   lapsed lease is reclaimable by design, so any action touching a
@@ -211,5 +211,5 @@ every config key (`13-configuration.md`).
   diverges and the run fails with `HistoryMismatchException`
 - **do not** reach for `runSync()` or `wait: true` for anything but short flows
   and tests — the gateway times out long before a real flow finishes
-- **do not** use `compensateInParallel()` unless the group's steps are genuinely
+- **do not** use `rollbackTogether()` unless the group's steps are genuinely
   independent; reverse order exists because rollbacks usually depend on it

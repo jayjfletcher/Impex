@@ -22,8 +22,8 @@ it('extracts products', function (): void {
 | `Flows::assertCompleted/assertFailed/assertWaiting` | Status, with the run's error in the failure message. |
 | `Flows::assertStepRan($run, $action, $times)` | An action ran, optionally exactly N times. |
 | `Flows::assertStepDidNotRun` | It did not. |
-| `Flows::assertCompensated($run, $action)` | A rollback completed. |
-| `Flows::assertNotCompensated` | Nothing rolled back. |
+| `Flows::assertRolledBack($run, $action)` | A rollback completed. |
+| `Flows::assertNotRolledBack` | Nothing rolled back. |
 | `Flows::assertForwardStepCount` | Pin the cost of a flow — a batch should stay at one step however many items it processes. |
 | `Flows::assertAwaitingSignal($run, $name)` | Parked on a named signal. |
 | `Flows::redeliverSteps($run)` | Re-run every recorded step's job, as at-least-once delivery would. |
@@ -90,7 +90,7 @@ it('is idempotent when a step job is redelivered', function (): void {
 });
 ```
 
-## Testing compensation
+## Testing rollback
 
 ```php
 it('rolls back the charge when shipping fails', function (): void {
@@ -98,11 +98,11 @@ it('rolls back the charge when shipping fails', function (): void {
 
     expect($run->refresh()->status)->toBe(RunStatus::Failed);
 
-    $compensation = $run->steps()->where('phase', StepPhase::Compensation)->get();
+    $rollback = $run->steps()->where('phase', StepPhase::Rollback)->get();
 
-    expect($compensation)->toHaveCount(1)
-        ->and($compensation[0]->name)->toBe(RefundCard::class)
-        ->and($compensation[0]->compensates_sequence)->toBe(0);
+    expect($rollback)->toHaveCount(1)
+        ->and($rollback[0]->name)->toBe(RefundCard::class)
+        ->and($rollback[0]->undoes_sequence)->toBe(0);
 });
 ```
 

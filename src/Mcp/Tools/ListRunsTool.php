@@ -22,7 +22,7 @@ final class ListRunsTool extends Tool
     public function schema(JsonSchema $schema): array
     {
         return [
-            'status' => $schema->string()->description('pending, running, waiting, compensating, completed, failed, or cancelled.'),
+            'status' => $schema->string()->description('pending, running, waiting, rolling back, completed, failed, or cancelled.'),
             'flow' => $schema->string()->description('Only runs of this flow slug.'),
             'trigger' => $schema->string()->description('api, mcp, command, schedule, channel, code, or child.'),
             'owner_type' => $schema->string()->description('Morph class of an owning model. Requires owner_id.'),

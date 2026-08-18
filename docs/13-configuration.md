@@ -52,7 +52,7 @@ its lease reclaimed while still working, and runs twice.
 
 | Key | Default | Meaning |
 |---|---|---|
-| `run` | `null` | Default seconds before a run passes its deadline and compensates. |
+| `run` | `null` | Default seconds before a run passes its deadline and roll backs. |
 | `step` | `null` | Default seconds before a step passes its deadline and fails. |
 
 Null means no deadline. Enforced by `impex:tick`, not in-process: a step that

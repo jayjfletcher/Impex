@@ -2,7 +2,7 @@
 
 Workflow engine and data-flow ledger for Laravel, built for Vapor.
 
-Impex runs multi-step work as deterministic, replayable flows with compensating
+Impex runs multi-step work as deterministic, replayable flows with rolling back
 rollback, and records every payload that crosses the application boundary so you
 can see the flow of data in and out. It is designed for a runtime with a hard
 execution ceiling, a small queue message, and no local disk.
@@ -52,7 +52,7 @@ final class ExtractProductsFlow extends Flow
             ->run();
 
         $this->action(WriteToPim::class, $hits, $pricing, $inventory)
-            ->compensateWith(RollbackPimWrite::class, $hits)
+            ->undoWith(RollbackPimWrite::class, $hits)
             ->run();
 
         return ['products' => count($hits)];
@@ -157,7 +157,7 @@ so N per-item steps cost roughly N²/2 step-row reads across a run:
 
 ```php
 // Up to impex.limits.fan_out_max (default 100). One recorded step per item, so
-// items retry and compensate individually and results come back in order.
+// items retry and roll back individually and results come back in order.
 $products = $this->fanOut($hits, fn (array $hit) => $this->action(FetchProduct::class, $hit['sku']))
     ->keyBy(fn (array $hit): string => $hit['sku'])   // optional; tolerates re-ordering
     ->run();
@@ -204,7 +204,7 @@ final class ProductSearchSource implements BatchSource
 ```
 
 `fanOut` over more than the cap raises `FanOutTooLargeException` pointing at
-`batch()`. What `batch` costs you: no per-item compensation, no positional
+`batch()`. What `batch` costs you: no per-item rollback, no positional
 results, no per-item signals.
 
 ## The ledger
@@ -373,9 +373,9 @@ $billing = $this->child('provision-billing', $customerId)
     ->run();
 ```
 
-A child is a run in its own right — own history, own compensation, own row —
+A child is a run in its own right — own history, own rollback, own row —
 linked by `parent_run_id`. The parent parks on it like any other step. A failed
-child unwinds the parent, after compensating itself.
+child unwinds the parent, after rolling back itself.
 
 ## Versioning
 
@@ -490,7 +490,7 @@ Run::query()->whereOwnedByAny([$team, $user])->get();
 
 ## Roadmap
 
-- [x] Replay engine, compensation, signals, timers, artifact offload, resume
+- [x] Replay engine, rollback, signals, timers, artifact offload, resume
 - [x] Flow registry with database overrides
 - [x] `fanOut()` and `batch()`
 - [x] Messages ledger, inbound channels, outbound recorder

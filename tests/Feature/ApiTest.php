@@ -104,14 +104,14 @@ it('shows a run with its owners and step history', function (): void {
         ->assertJsonMissingPath('data.steps.0.result');
 });
 
-it('lists a run steps including the compensation phase', function (): void {
+it('lists a run steps including the rollback phase', function (): void {
     $run = app(Impex::class)->run('linear', [1]);
 
     $this->getJson('/impex/runs/'.$run->getKey().'/steps')
         ->assertOk()
         ->assertJsonCount(2, 'data');
 
-    $this->getJson('/impex/runs/'.$run->getKey().'/steps?phase=compensation')
+    $this->getJson('/impex/runs/'.$run->getKey().'/steps?phase=rollback')
         ->assertOk()
         ->assertJsonCount(0, 'data');
 });

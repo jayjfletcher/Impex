@@ -4,8 +4,6 @@ declare(strict_types=1);
 
 namespace JayI\Impex\Runtime;
 
-use Illuminate\Contracts\Bus\Dispatcher as Bus;
-use Illuminate\Contracts\Config\Repository as Config;
 use Illuminate\Contracts\Container\Container;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Carbon;
@@ -14,8 +12,6 @@ use JayI\Impex\Contracts\BatchSource;
 use JayI\Impex\Enums\ArtifactKind;
 use JayI\Impex\Enums\StepStatus;
 use JayI\Impex\Exceptions\BatchFailedException;
-use JayI\Impex\Jobs\ProcessBatchItem;
-use JayI\Impex\Jobs\SeedBatch;
 use JayI\Impex\Models\Batch;
 use JayI\Impex\Models\BatchItem;
 use JayI\Impex\Models\Run;
@@ -38,9 +34,9 @@ final class BatchRunner
     public function __construct(
         private readonly Container $container,
         private readonly PayloadStore $payloads,
-        private readonly Bus $bus,
+        private readonly JobRouter $jobs,
         private readonly Locks $locks,
-        private readonly Config $config,
+        private readonly EngineOptions $options,
     ) {}
 
     /**
@@ -56,7 +52,7 @@ final class BatchRunner
         }
 
         $source = $this->makeSource($batch);
-        $deadline = StepDeadline::in($this->maxStepSeconds(), $this->resumeMargin());
+        $deadline = StepDeadline::in($this->options->maxStepSeconds(), $this->options->resumeMargin());
 
         while (true) {
             $chunk = $source->chunk($cursor, $batch->chunk_size);
@@ -85,7 +81,7 @@ final class BatchRunner
             // A Lambda timeout cannot be caught, so seeding stops short of the
             // ceiling and re-dispatches itself from the cursor it just stored.
             if ($deadline->reached()) {
-                $this->bus->dispatch(new SeedBatch($batchId, $cursor));
+                $this->jobs->seed($batch->run, $batchId, $cursor);
 
                 return;
             }
@@ -124,7 +120,7 @@ final class BatchRunner
             ->update([
                 'status' => StepStatus::Running->value,
                 'lease_token' => $token,
-                'leased_until' => Carbon::now()->addSeconds($this->leaseSeconds()),
+                'leased_until' => Carbon::now()->addSeconds($this->options->leaseSeconds()),
                 'attempts' => $item->attempts + 1,
                 'updated_at' => Carbon::now(),
             ]);
@@ -330,7 +326,7 @@ final class BatchRunner
                 ->first();
 
             if ($row instanceof BatchItem) {
-                $this->bus->dispatch(new ProcessBatchItem((string) $row->getKey()));
+                $this->jobs->batchItem($batch->run, (string) $row->getKey());
             }
         }
 
@@ -358,7 +354,7 @@ final class BatchRunner
                     'updated_at' => Carbon::now(),
                 ]);
 
-            $this->bus->dispatch(new ProcessBatchItem((string) $item->getKey()));
+            $this->jobs->batchItem($batch->run, (string) $item->getKey());
 
             return;
         }
@@ -399,29 +395,5 @@ final class BatchRunner
         }
 
         return $source;
-    }
-
-    private function maxStepSeconds(): int
-    {
-        /** @var int $seconds */
-        $seconds = $this->config->get('impex.limits.max_step_seconds', 840);
-
-        return $seconds;
-    }
-
-    private function resumeMargin(): int
-    {
-        /** @var int $seconds */
-        $seconds = $this->config->get('impex.limits.resume_margin_seconds', 30);
-
-        return $seconds;
-    }
-
-    private function leaseSeconds(): int
-    {
-        /** @var int $seconds */
-        $seconds = $this->config->get('impex.limits.lease_seconds', 900);
-
-        return $seconds;
     }
 }

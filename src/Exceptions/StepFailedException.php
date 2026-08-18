@@ -6,7 +6,7 @@ namespace JayI\Impex\Exceptions;
 
 /**
  * Signals to the engine that a recorded step failed terminally, so the run
- * should begin compensating. Never thrown out of the engine to user code.
+ * should begin rolling back. Never thrown out of the engine to user code.
  */
 final class StepFailedException extends ImpexException
 {

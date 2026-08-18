@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace JayI\Impex\Runtime;
 
 use DateTimeInterface;
-use JayI\Impex\Enums\CompensationFailure;
+use JayI\Impex\Enums\RollbackFailure;
 use JayI\Impex\Enums\StepType;
 
 /**
@@ -18,19 +18,19 @@ final readonly class StepDescriptor
 {
     /**
      * @param  array<int, mixed>  $arguments
-     * @param  array{action: string, arguments: array<int, mixed>}|null  $compensation
+     * @param  array{action: string, arguments: array<int, mixed>}|null  $rollback
      */
     public function __construct(
         public StepType $type,
         public string $name,
         public array $arguments = [],
-        public ?array $compensation = null,
+        public ?array $rollback = null,
         public int $maxAttempts = 1,
         public bool $continueOnFailure = false,
         public mixed $fallback = null,
         public ?DateTimeInterface $expiresAt = null,
-        public ?string $sagaGroup = null,
-        public CompensationFailure $compensationFailure = CompensationFailure::Stop,
-        public bool $compensateInParallel = false,
+        public ?string $unitId = null,
+        public RollbackFailure $rollbackFailure = RollbackFailure::Halt,
+        public bool $rollbackTogether = false,
     ) {}
 }

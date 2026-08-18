@@ -13,11 +13,19 @@ use JayI\Impex\Console\Commands\PruneCommand;
 use JayI\Impex\Console\Commands\RunFlowCommand;
 use JayI\Impex\Console\Commands\SignalCommand;
 use JayI\Impex\Console\Commands\TickCommand;
+use JayI\Impex\Contracts\RollbackStrategy;
 use JayI\Impex\Flows\FlowRegistry;
 use JayI\Impex\Http\Controllers\UiController;
 use JayI\Impex\Mcp\ImpexServer;
 use JayI\Impex\Runtime\BatchRunner;
+use JayI\Impex\Runtime\Children;
 use JayI\Impex\Runtime\Engine;
+use JayI\Impex\Runtime\EngineOptions;
+use JayI\Impex\Runtime\JobRouter;
+use JayI\Impex\Runtime\Rollbacks;
+use JayI\Impex\Runtime\StepWriter;
+use JayI\Impex\Runtime\Sweeper;
+use JayI\Impex\Runtime\Waits;
 use JayI\Impex\Support\Locks;
 use JayI\Impex\Support\MessageRecorder;
 use JayI\Impex\Support\OutboundRecorder;
@@ -38,6 +46,23 @@ class ImpexServiceProvider extends ServiceProvider
         $this->app->singleton(PayloadStore::class);
 
         $this->app->singleton(Locks::class);
+
+        // Each engine collaborator is resolved from the container, so an
+        // application can bind its own without forking the package.
+        $this->app->singleton(EngineOptions::class);
+
+        $this->app->singleton(JobRouter::class);
+
+        $this->app->singleton(StepWriter::class);
+
+        $this->app->singleton(Children::class);
+
+        $this->app->singleton(Waits::class);
+
+        $this->app->singleton(Sweeper::class);
+
+        // Bind your own to change what a failed run unwinds, and in what order.
+        $this->app->singleton(RollbackStrategy::class, Rollbacks::class);
 
         $this->app->singleton(ChannelRegistry::class);
 

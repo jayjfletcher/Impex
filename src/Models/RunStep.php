@@ -27,16 +27,16 @@ use JayI\Impex\Enums\StepType;
  * @property array<string, mixed>|null $result
  * @property string|null $result_artifact_id
  * @property array<string, mixed>|null $error
- * @property array<string, mixed>|null $compensation
- * @property bool $compensated
+ * @property array<string, mixed>|null $rollback
+ * @property bool $undone
  * @property int $attempts
  * @property int $max_attempts
  * @property array<string, mixed>|null $cursor
  * @property int $resumptions
  * @property string|null $lease_token
  * @property Carbon|null $leased_until
- * @property int|null $compensates_sequence
- * @property string|null $saga_group
+ * @property int|null $undoes_sequence
+ * @property string|null $unit_id
  * @property Carbon|null $expires_at
  * @property Carbon|null $queued_at
  * @property Carbon|null $started_at
@@ -63,16 +63,16 @@ final class RunStep extends Model
         'result',
         'result_artifact_id',
         'error',
-        'compensation',
-        'compensated',
+        'rollback',
+        'undone',
         'attempts',
         'max_attempts',
         'cursor',
         'resumptions',
         'lease_token',
         'leased_until',
-        'compensates_sequence',
-        'saga_group',
+        'undoes_sequence',
+        'unit_id',
         'expires_at',
         'queued_at',
         'started_at',
@@ -108,13 +108,13 @@ final class RunStep extends Model
             'input' => 'array',
             'result' => 'array',
             'error' => 'array',
-            'compensation' => 'array',
-            'compensated' => 'boolean',
+            'rollback' => 'array',
+            'undone' => 'boolean',
             'attempts' => 'integer',
             'max_attempts' => 'integer',
             'cursor' => 'array',
             'resumptions' => 'integer',
-            'compensates_sequence' => 'integer',
+            'undoes_sequence' => 'integer',
             'leased_until' => 'datetime',
             'expires_at' => 'datetime',
             'queued_at' => 'datetime',

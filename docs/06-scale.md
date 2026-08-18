@@ -29,11 +29,11 @@ None of that fits in fifteen minutes.
 ```php
 $products = $this->fanOut($hits, fn (array $hit) => $this->action(FetchProduct::class, $hit['sku']))
     ->keyBy(fn (array $hit): string => $hit['sku'])
-    ->failurePolicy(ParallelFailure::WaitAllThenFail)
+    ->failurePolicy(ParallelFailure::SettleAll)
     ->run();
 ```
 
-Each item becomes its own recorded step, so items retry and compensate
+Each item becomes its own recorded step, so items retry and roll back
 individually and results come back in key order.
 
 Above `impex.limits.fan_out_max` (default 100) it refuses:
@@ -175,7 +175,7 @@ final class SweepCatalogueFlow extends Flow
         // ]
 
         $this->action(WriteToPim::class, $summary['batch_id'])
-            ->compensateWith(RollbackPimWrite::class, $summary['batch_id'])
+            ->undoWith(RollbackPimWrite::class, $summary['batch_id'])
             ->run();
 
         return $summary;
@@ -219,7 +219,7 @@ BatchItem::query()
 | | `fanOut` | `batch` |
 |---|---|---|
 | per-item retry | yes | yes |
-| **per-item compensation** | yes | **no** — rollback is per batch |
+| **per-item rollback** | yes | **no** — rollback is per batch |
 | **per-item result, in position** | yes | **no** — aggregate + streamed items |
 | per-item signals / sleeps | yes | no |
 | item ceiling | ~100 (configurable) | none |

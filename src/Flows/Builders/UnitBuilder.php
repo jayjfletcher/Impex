@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace JayI\Impex\Flows\Builders;
 
-use JayI\Impex\Enums\CompensationFailure;
+use JayI\Impex\Enums\RollbackFailure;
 use JayI\Impex\Runtime\Context;
 
 /**
@@ -12,14 +12,14 @@ use JayI\Impex\Runtime\Context;
  *
  * Every step runs and is recorded exactly as `action()` would, so grouping
  * changes nothing about the forward path. What it changes is the rollback: the
- * group's steps share a failure policy, and can be compensated together rather
+ * group's steps share a failure policy, and can be rolled back together rather
  * than one at a time.
  */
-final class SagaBuilder
+final class UnitBuilder
 {
     private readonly string $group;
 
-    private CompensationFailure $onFailure = CompensationFailure::Stop;
+    private RollbackFailure $onFailure = RollbackFailure::Halt;
 
     private bool $inParallel = false;
 
@@ -30,17 +30,17 @@ final class SagaBuilder
     {
         // Deterministic: derived from the group's position in the replay, not
         // from a random value, so it is identical on every drive.
-        $this->group = $this->context->sagaGroupId();
+        $this->group = $this->context->unitId();
     }
 
     /**
-     * What to do when a compensation in this group itself fails.
+     * What to do when a rollback in this group itself fails.
      *
      * `Stop` (the default) halts the rollback and leaves the run for
      * inspection, because a half-completed rollback that keeps going can
      * compound the damage. `Continue` pushes through and reports at the end.
      */
-    public function onCompensationFailure(CompensationFailure $policy): self
+    public function onRollbackFailure(RollbackFailure $policy): self
     {
         $this->onFailure = $policy;
 
@@ -53,7 +53,7 @@ final class SagaBuilder
      * Only safe when the group's steps are independent — if releasing stock
      * before refunding a card matters, leave this off.
      */
-    public function compensateInParallel(): self
+    public function rollbackTogether(): self
     {
         $this->inParallel = true;
 
@@ -73,12 +73,12 @@ final class SagaBuilder
     /**
      * Register a rollback for the step most recently added.
      */
-    public function compensateWith(string $action, mixed ...$arguments): self
+    public function undoWith(string $action, mixed ...$arguments): self
     {
         $step = end($this->steps);
 
         if ($step instanceof ActionBuilder) {
-            $step->compensateWith($action, ...$arguments);
+            $step->undoWith($action, ...$arguments);
         }
 
         return $this;
@@ -109,7 +109,7 @@ final class SagaBuilder
 
         foreach ($this->steps as $step) {
             $results[] = $step
-                ->inSaga($this->group, $this->onFailure, $this->inParallel)
+                ->inUnit($this->group, $this->onFailure, $this->inParallel)
                 ->run();
         }
 

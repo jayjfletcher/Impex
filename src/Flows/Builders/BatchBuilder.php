@@ -19,7 +19,7 @@ use JayI\Impex\Runtime\Context;
  * never reads. That is what keeps the cost of a drive independent of the item
  * count, and it is the reason a million-item sweep is possible at all.
  *
- * The tradeoff against fanOut(): batched items get no per-item compensation, no
+ * The tradeoff against fanOut(): batched items get no per-item rollback, no
  * positional results, and no per-item signals. Use fanOut when one item failing
  * should unwind the run item-by-item; use batch for throughput.
  */

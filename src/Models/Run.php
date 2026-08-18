@@ -215,7 +215,7 @@ final class Run extends Model
             RunStatus::Pending,
             RunStatus::Running,
             RunStatus::Waiting,
-            RunStatus::Compensating,
+            RunStatus::RollingBack,
         ]);
     }
 

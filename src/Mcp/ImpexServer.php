@@ -31,7 +31,7 @@ use Laravel\Mcp\Server\Tool;
     'A run is one execution of a flow; its steps are the recorded history of what it did, in replay order. '.
     'Starting a run is always asynchronous — run-flow returns a pending run and the work is queued, so poll '.
     'show-run rather than expecting a result. A run with status "waiting" is blocked on a signal or a timer: '.
-    'signal-run releases it. A failed run may have compensated: list-run-steps with phase "compensation" '.
+    'signal-run releases it. A failed run may have rolled back: list-run-steps with phase "rollback" '.
     'shows what was rolled back. The ledger (list-messages) records every payload that has crossed the '.
     'application boundary in either direction, linked to the run and step that caused it. Payloads are never '.
     'inlined in listings — large results live on an artifact disk and are referenced by id.',

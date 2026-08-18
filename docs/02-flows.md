@@ -27,7 +27,7 @@ final class ExtractProductsFlow extends Flow
             ->run();
 
         $this->action(WriteToPim::class, $hits, $pricing, $inventory)
-            ->compensateWith(RollbackPimWrite::class, $hits)
+            ->undoWith(RollbackPimWrite::class, $hits)
             ->run();
 
         return ['products' => count($hits)];
@@ -92,12 +92,12 @@ Everything below is available inside `handle()`.
 
 ### `action(string $class, mixed ...$arguments): ActionBuilder`
 
-One recorded, retryable, compensatable step.
+One recorded, retryable, reversible step.
 
 ```php
 $result = $this->action(ChargeCard::class, $orderId, $amount)
     ->tries(3)                                     // attempts before terminal failure
-    ->compensateWith(RefundCard::class, $orderId)  // rollback, captured now
+    ->undoWith(RefundCard::class, $orderId)  // rollback, captured now
     ->expiresAt(now()->addMinutes(10))             // a deadline for this step
     ->continueOnFailure(['charged' => false])      // treat failure as this value
     ->run();
@@ -106,7 +106,7 @@ $result = $this->action(ChargeCard::class, $orderId, $amount)
 | Method | Effect |
 |---|---|
 | `tries(int)` | Attempts before the step fails terminally. Default 1. |
-| `compensateWith(string $class, ...$args)` | Rollback to run if a later step fails. Class, not closure — see [Compensation](04-compensation.md). |
+| `undoWith(string $class, ...$args)` | Rollback to run if a later step fails. Class, not closure — see [Rollback](04-rollback.md). |
 | `expiresAt(DateTimeInterface)` | A deadline recorded on the step. |
 | `continueOnFailure(mixed $fallback = null)` | A terminal failure returns `$fallback` instead of unwinding the run. |
 | `run()` | Resolve: return the recorded result, or schedule and suspend. |
@@ -122,28 +122,28 @@ An action whose failure should not unwind the run. Shorthand for
 $thumbnail = $this->optionalAction(GenerateThumbnail::class, $sku)->run();   // null on failure
 ```
 
-### `saga(): SagaBuilder`
+### `unit(): UnitBuilder`
 
 Groups steps under one rollback policy. The forward path is unchanged — each
 step is recorded exactly as `action()` would record it. What changes is the
 rollback.
 
 ```php
-$this->saga()
-    ->onCompensationFailure(CompensationFailure::Continue)
-    ->compensateInParallel()
-    ->step(ChargeCard::class, $orderId)->compensateWith(RefundCard::class, $orderId)
-    ->step(ReserveStock::class, $orderId)->compensateWith(ReleaseStock::class, $orderId)
+$this->unit()
+    ->onRollbackFailure(RollbackFailure::Continue)
+    ->rollbackTogether()
+    ->step(ChargeCard::class, $orderId)->undoWith(RefundCard::class, $orderId)
+    ->step(ReserveStock::class, $orderId)->undoWith(ReleaseStock::class, $orderId)
     ->step(ShipOrder::class, $orderId)
     ->run();
 ```
 
 | Method | Effect |
 |---|---|
-| `onCompensationFailure(CompensationFailure)` | `Stop` (default) halts the rollback; `Continue` pushes through. |
-| `compensateInParallel()` | Roll the group back all at once instead of in reverse order. Only safe when the steps are independent. |
+| `onRollbackFailure(RollbackFailure)` | `Stop` (default) halts the rollback; `Continue` pushes through. |
+| `rollbackTogether()` | Roll the group back all at once instead of in reverse order. Only safe when the steps are independent. |
 | `step(string $class, ...$args)` | Add a step. |
-| `compensateWith(string $class, ...$args)` | Rollback for the step just added. |
+| `undoWith(string $class, ...$args)` | Rollback for the step just added. |
 | `tries(int)` | Attempts for the step just added. |
 
 ### `child(string $flow, mixed ...$arguments): ChildBuilder`
@@ -171,15 +171,15 @@ declaration order.
     ->action(DownloadImages::class, $skus)
     ->action(FetchPricing::class, $skus)
     ->action(FetchInventory::class, $skus)
-    ->failurePolicy(ParallelFailure::WaitAllThenFail)
+    ->failurePolicy(ParallelFailure::SettleAll)
     ->run();
 ```
 
-A branch that needs its own retry or compensation policy is added pre-built:
+A branch that needs its own retry or rollback policy is added pre-built:
 
 ```php
 $this->parallel()
-    ->add($this->action(ChargeCard::class, $id)->compensateWith(RefundCard::class, $id))
+    ->add($this->action(ChargeCard::class, $id)->undoWith(RefundCard::class, $id))
     ->add($this->action(ReserveStock::class, $id)->tries(3))
     ->run();
 ```
@@ -187,7 +187,7 @@ $this->parallel()
 | Policy | Behaviour |
 |---|---|
 | `ParallelFailure::FailFast` (default) | The block fails as soon as any branch has failed. |
-| `ParallelFailure::WaitAllThenFail` | Every branch settles first, then the block fails. |
+| `ParallelFailure::SettleAll` | Every branch settles first, then the block fails. |
 
 Unlike a single action, the block schedules **every** unrecorded branch before
 it suspends — otherwise a run would serialise one branch per drive.
@@ -321,7 +321,7 @@ Impex::retry($run);           // re-queue a drive; completed steps are not re-ru
 | `pending` | Created, first drive queued. |
 | `running` | Work in flight. |
 | `waiting` | Blocked on a signal or a timer. Costs nothing while it waits. |
-| `compensating` | A step failed; rollback is walking backwards. |
+| `rolling back` | A step failed; rollback is walking backwards. |
 | `completed` | `handle()` returned. |
-| `failed` | A step failed terminally, and any compensation has finished. |
+| `failed` | A step failed terminally, and any rollback has finished. |
 | `cancelled` | Cancelled before finishing. |

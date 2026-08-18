@@ -28,9 +28,9 @@ final class RunStepResource extends JsonResource
             'attempts' => $this->attempts,
             'max_attempts' => $this->max_attempts,
             'resumptions' => $this->resumptions,
-            'compensated' => $this->compensated,
-            'compensates_sequence' => $this->compensates_sequence,
-            'saga_group' => $this->saga_group,
+            'undone' => $this->undone,
+            'undoes_sequence' => $this->undoes_sequence,
+            'unit_id' => $this->unit_id,
             'expires_at' => $this->expires_at?->toIso8601String(),
             'error' => $this->error,
             // Payloads are deliberately not inlined: a step result can be

@@ -65,6 +65,73 @@ Prefix your slugs (`catalogue:sync`) and this never comes up. Registering the
 same class under the same slug twice is a no-op, so a provider that boots more
 than once does no harm.
 
+## Swapping engine internals
+
+The engine is a facade over collaborators, each resolved from the container. To
+change one, bind your own — no forking, no subclassing the engine.
+
+| Bind | To change |
+|---|---|
+| `RollbackStrategy` | What a failed run unwinds, and in what order |
+| `StepWriter` | How steps are recorded — extra columns, a different payload policy |
+| `JobRouter` | How engine jobs are routed onto queues |
+| `EngineOptions` | Where the tuning comes from, if not config |
+| `Waits` | Signal delivery, sleeps, timer firing, deadline enforcement |
+| `Children` | How child runs are started and reported back |
+| `Sweeper` | What the periodic pass does |
+
+```php
+// A strategy that unwinds only as far as a marked step.
+final class UnwindToCheckpoint implements RollbackStrategy
+{
+    public function __construct(private readonly Rollbacks $default) {}
+
+    public function next(Run $run): bool
+    {
+        if ($run->tags['checkpointed'] ?? false) {
+            return false;   // nothing to undo past the checkpoint
+        }
+
+        return $this->default->next($run);
+    }
+
+    public function halts(RunStep $rollbackStep): bool
+    {
+        return $this->default->halts($rollbackStep);
+    }
+}
+```
+
+```php
+// A service provider
+$this->app->bind(RollbackStrategy::class, UnwindToCheckpoint::class);
+```
+
+Decorating the shipped implementation, as above, is usually better than
+replacing it — the default carries the parts that are easy to get wrong, like
+settling a failed rollback so the unwind cannot loop.
+
+### The sweep
+
+`Sweeper` is a class rather than logic inside `impex:tick`, so you can call it
+from a job or a health check:
+
+```php
+$report = app(Sweeper::class)->sweep();
+
+$report->idle();          // nothing to do
+$report->timers;          // fired
+$report->leases;          // reclaimed
+$report->expiredSteps;    // past their deadline
+$report->summary();       // one line, for a log or a command
+```
+
+### Tuning
+
+`EngineOptions` reads the config once and validates it. `lease_seconds` at or
+below `max_step_seconds` throws with both values named, rather than surfacing
+later as a slow step that ran twice.
+
 ## Contracts
 
 Four, each with a real second implementation or a real host-app need. Everything
@@ -76,6 +143,7 @@ actually exists.
 | `SignatureValidator` | Verifying an inbound request — every upstream signs differently |
 | `ChannelProfile` | Deciding which inbound requests become runs |
 | `BatchSource` | Streaming resumable pages of work into a batch |
+| `RollbackStrategy` | What a failed run unwinds, and in what order |
 | `Resumable` | An action that checkpoints and resumes (via `ResumableAction`) |
 | `UiTokenResolver` | Minting the dashboard's bearer token in `token` mode |
 

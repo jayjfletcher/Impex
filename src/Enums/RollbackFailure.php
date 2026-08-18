@@ -4,12 +4,12 @@ declare(strict_types=1);
 
 namespace JayI\Impex\Enums;
 
-enum CompensationFailure: string
+enum RollbackFailure: string
 {
     /**
-     * Halt the rollback and surface the compensation failure.
+     * Halt the rollback and surface the rollback failure.
      */
-    case Stop = 'stop';
+    case Halt = 'halt';
 
     /**
      * Continue rolling back, reporting failures at the end.

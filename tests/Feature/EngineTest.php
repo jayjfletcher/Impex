@@ -13,11 +13,11 @@ use JayI\Impex\Models\RunStep;
 use JayI\Impex\Runtime\Engine;
 use JayI\Impex\Tests\Fixtures\AddOne;
 use JayI\Impex\Tests\Fixtures\Calls;
-use JayI\Impex\Tests\Fixtures\CompensatingFlow;
 use JayI\Impex\Tests\Fixtures\LargePayloadFlow;
 use JayI\Impex\Tests\Fixtures\LinearFlow;
 use JayI\Impex\Tests\Fixtures\ParallelFlow;
 use JayI\Impex\Tests\Fixtures\ResumingFlow;
+use JayI\Impex\Tests\Fixtures\RollbackFlow;
 use JayI\Impex\Tests\Fixtures\SideEffectFlow;
 use JayI\Impex\Tests\Fixtures\SignalFlow;
 
@@ -31,7 +31,7 @@ beforeEach(function (): void {
     config()->set('impex.flows', [
         'linear' => LinearFlow::class,
         'parallel' => ParallelFlow::class,
-        'compensating' => CompensatingFlow::class,
+        'rolling_back' => RollbackFlow::class,
         'side-effect' => SideEffectFlow::class,
         'signal' => SignalFlow::class,
         'large' => LargePayloadFlow::class,
@@ -138,19 +138,19 @@ it('schedules every branch of a parallel block in one drive', function (): void 
         ->and($run->forwardSteps()->count())->toBe(2);
 });
 
-it('compensates completed steps in reverse when a step fails', function (): void {
-    $run = app(Impex::class)->run('compensating');
+it('roll backs completed steps in reverse when a step fails', function (): void {
+    $run = app(Impex::class)->run('rolling_back');
 
     expect($run->refresh()->status)->toBe(RunStatus::Failed)
         ->and(Calls::count('rollback:add-one'))->toBe(1);
 
-    $compensation = $run->steps()->where('phase', StepPhase::Compensation)->get();
+    $rollback = $run->steps()->where('phase', StepPhase::Rollback)->get();
 
-    expect($compensation)->toHaveCount(1)
-        ->and($compensation[0]->status)->toBe(StepStatus::Completed)
-        ->and($compensation[0]->compensates_sequence)->toBe(0);
+    expect($rollback)->toHaveCount(1)
+        ->and($rollback[0]->status)->toBe(StepStatus::Completed)
+        ->and($rollback[0]->undoes_sequence)->toBe(0);
 
-    expect($run->forwardSteps()->where('sequence', 0)->first()->compensated)->toBeTrue();
+    expect($run->forwardSteps()->where('sequence', 0)->first()->undone)->toBeTrue();
 });
 
 it('records a side effect once and reuses it on replay', function (): void {

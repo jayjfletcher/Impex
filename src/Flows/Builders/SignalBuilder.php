@@ -48,7 +48,7 @@ final class SignalBuilder
      *
      * Without this a timed out wait returns the default, letting the flow
      * branch rather than unwinding. Use `orFail()` when a missing signal really
-     * is a failure worth compensating for.
+     * is a failure worth rolling back for.
      */
     public function orFail(): self
     {
