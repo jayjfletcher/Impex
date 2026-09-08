@@ -131,21 +131,12 @@ Both ship disabled.
 
 ```php
 'ui' => [
-    'enabled' => false,
-    'path' => 'impex/ui',
-    'middleware' => ['web'],
-    'auth' => [
-        'mode' => 'session',          // session | token | oauth | custom
-        'token_resolver' => null,
-        'oauth' => [
-            'client_id' => null,
-            'authorize_url' => '/oauth/authorize',
-            'token_url' => '/oauth/token',
-            'scopes' => [],
-        ],
-    ],
+    'enabled' => true, // register Impex with the Atrium dashboard
 ],
 ```
+
+Atrium owns the dashboard's path, middleware and authorization gate, so this is
+the only setting. Turning it off keeps the JSON API serving.
 
 See [Dashboard](11-dashboard.md).
 

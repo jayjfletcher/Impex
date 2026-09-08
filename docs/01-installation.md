@@ -28,7 +28,7 @@ completion check was throttled.
 |---|---|
 | `impex-config` | `config/impex.php` |
 | `impex-migrations` | the seven migrations |
-| `impex-assets` | the compiled dashboard bundle |
+| `atrium-assets` | the Atrium dashboard's stylesheet and scripts |
 | `impex-views` | the dashboard shell view, if you want to customise it |
 | `impex-lang` | translation strings |
 | `impex` | all of the above |

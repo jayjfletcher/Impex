@@ -1,9 +1,12 @@
 laravel: '@testbench'
 
 providers:
-  # - Workbench\App\Providers\WorkbenchServiceProvider
+  - Atrium\Atrium\AtriumServiceProvider
+  - Dedoc\Scramble\ScrambleServiceProvider
+  - Workbench\App\Providers\WorkbenchServiceProvider
 
 migrations:
+  - database/migrations
   - workbench/database/migrations
 
 seeders:
@@ -27,6 +30,7 @@ workbench:
     - migrate-fresh
   assets:
     - laravel-assets
+    - atrium-assets
   sync:
     - from: storage
       to: workbench/storage

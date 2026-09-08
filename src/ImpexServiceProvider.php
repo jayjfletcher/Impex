@@ -4,9 +4,10 @@ declare(strict_types=1);
 
 namespace JayI\Impex;
 
+use Atrium\Atrium\Facades\Atrium;
 use Illuminate\Console\Scheduling\Schedule;
-use Illuminate\Support\Facades\Route;
 use Illuminate\Support\ServiceProvider;
+use JayI\Impex\Atrium\ImpexPlugin;
 use JayI\Impex\Channels\ChannelRegistry;
 use JayI\Impex\Console\Commands\ImpexCommand;
 use JayI\Impex\Console\Commands\PruneCommand;
@@ -15,7 +16,6 @@ use JayI\Impex\Console\Commands\SignalCommand;
 use JayI\Impex\Console\Commands\TickCommand;
 use JayI\Impex\Contracts\RollbackStrategy;
 use JayI\Impex\Flows\FlowRegistry;
-use JayI\Impex\Http\Controllers\UiController;
 use JayI\Impex\Mcp\ImpexServer;
 use JayI\Impex\Runtime\BatchRunner;
 use JayI\Impex\Runtime\Children;
@@ -84,7 +84,7 @@ class ImpexServiceProvider extends ServiceProvider
     {
         $this->registerRoutes();
 
-        $this->registerUiRoutes();
+        $this->registerAtriumPlugin();
 
         $this->registerMcpServer();
 
@@ -145,32 +145,21 @@ class ImpexServiceProvider extends ServiceProvider
      * Ships disabled and admin-only by intent: the dashboard renders every
      * payload that has crossed the application boundary.
      */
-    private function registerUiRoutes(): void
+    /**
+     * Register Impex with the Atrium dashboard.
+     *
+     * Atrium discovers the plugin from composer.json, so this only honours the
+     * config switch that turns the dashboard surface off.
+     */
+    private function registerAtriumPlugin(): void
     {
-        $config = $this->app->make('config');
-
-        if ($config->get('impex.ui.enabled') !== true) {
+        if ($this->app->make('config')->get('impex.ui.enabled') !== true) {
             return;
         }
 
-        /** @var array<int, string> $middleware */
-        $middleware = $config->get('impex.ui.middleware', []);
-
-        $path = trim((string) $config->get('impex.ui.path', 'impex/ui'), '/');
-
-        Route::middleware($middleware)
-            ->get($path.'/{view?}', UiController::class)
-            ->where('view', '.*')
-            ->name('impex.ui');
+        Atrium::plugin(ImpexPlugin::class);
     }
 
-    /**
-     * Register the Impex MCP server transports enabled in the config.
-     *
-     * Both ship disabled. The server triggers and cancels workflows and reads
-     * every recorded payload, so the web transport needs auth middleware before
-     * it is exposed.
-     */
     private function registerMcpServer(): void
     {
         if (! class_exists(Mcp::class)) {

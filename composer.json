@@ -22,7 +22,8 @@
     "require": {
         "php": "^8.4",
         "illuminate/support": "^13.15",
-        "laravel/mcp": "^0.9"
+        "laravel/mcp": "^0.9",
+        "jayi/atrium": "dev-main"
     },
     "require-dev": {
         "larastan/larastan": "^3.9",
@@ -32,7 +33,8 @@
         "pestphp/pest": "^5.0",
         "pestphp/pest-plugin-laravel": "^5.0",
         "pestphp/pest-plugin-type-coverage": "^5.0",
-        "phpstan/extension-installer": "^1.4"
+        "phpstan/extension-installer": "^1.4",
+        "dedoc/scramble": "^0.13.16"
     },
     "autoload": {
         "psr-4": {
@@ -100,6 +102,11 @@
             "aliases": {
                 "Impex": "JayI\\Impex\\Facades\\Impex"
             }
+        },
+        "atrium": {
+            "plugins": [
+                "JayI\\Impex\\Atrium\\ImpexPlugin"
+            ]
         }
     },
     "config": {
@@ -110,5 +117,11 @@
         }
     },
     "minimum-stability": "stable",
-    "prefer-stable": true
+    "prefer-stable": true,
+    "repositories": [
+        {
+            "type": "vcs",
+            "url": "https://github.com/jayjfletcher/Atrium.git"
+        }
+    ]
 }

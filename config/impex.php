@@ -226,38 +226,20 @@ return [
     | Dashboard UI
     |--------------------------------------------------------------------------
     |
-    | Ships disabled and admin-only by intent. Add authentication middleware
-    | before enabling it: the dashboard exposes every payload that has
-    | crossed the application boundary.
+    | Impex renders its dashboard through Atrium, which owns the path,
+    | middleware and authorization gate. Gate it carefully: the dashboard
+    | exposes every payload that has crossed the application boundary.
     |
     */
 
     'ui' => [
-        'enabled' => false,
-        'path' => 'impex/ui',
-        'middleware' => ['web'],
 
         /*
-        | How the dashboard talks to the API:
-        |
-        |   session  same-origin cookies plus the CSRF token
-        |   token    a bearer token from a JayI\Impex\Contracts\UiTokenResolver
-        |   oauth    authorization-code + PKCE as a public client, which is what
-        |            Laravel Passport's `--public` clients expect
-        |   custom   a window.ImpexAuth driver the host page defines
+        | Whether Impex registers itself with the Atrium dashboard. The JSON
+        | API is unaffected by this switch.
         */
 
-        'auth' => [
-            'mode' => 'session',
-            'token_resolver' => null,
-            'oauth' => [
-                // Set this in the published config, e.g. env('IMPEX_OAUTH_CLIENT_ID').
-                'client_id' => null,
-                'authorize_url' => '/oauth/authorize',
-                'token_url' => '/oauth/token',
-                'scopes' => [],
-            ],
-        ],
+        'enabled' => true,
     ],
 
     /*

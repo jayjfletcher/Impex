@@ -145,7 +145,6 @@ actually exists.
 | `BatchSource` | Streaming resumable pages of work into a batch |
 | `RollbackStrategy` | What a failed run unwinds, and in what order |
 | `Resumable` | An action that checkpoints and resumes (via `ResumableAction`) |
-| `UiTokenResolver` | Minting the dashboard's bearer token in `token` mode |
 
 Each is resolved at the point of use from a config value, so swapping one is a
 config change:

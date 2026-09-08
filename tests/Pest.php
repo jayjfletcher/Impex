@@ -3,13 +3,11 @@
 declare(strict_types=1);
 
 use JayI\Impex\Tests\TestCase;
-use JayI\Impex\Tests\UiTestCase;
 
 uses(TestCase::class)->in('Feature', 'Unit');
 
 // The dashboard mounts its route at boot, so it needs a test case that enables
 // it before the application is created.
-uses(UiTestCase::class)->in('Ui');
 
 /**
  * Use-case Actions with no MCP tool, and why.

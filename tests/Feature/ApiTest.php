@@ -21,10 +21,10 @@ beforeEach(function (): void {
     ]);
 });
 
-it('does not mount the dashboard unless it is enabled', function (): void {
-    // Ships disabled: the dashboard renders every payload that has crossed the
-    // application boundary, so mounting it is an explicit decision.
-    expect(app('router')->getRoutes()->getByName('impex.ui'))->toBeNull();
+it('mounts the dashboard through atrium', function (): void {
+    // The dashboard renders every payload that has crossed the application
+    // boundary, so it sits behind Atrium's authorization gate.
+    expect(app('router')->getRoutes()->getByName('atrium.impex.runs.index'))->not->toBeNull();
 });
 
 it('lists the registered flows with their effective schedule', function (): void {

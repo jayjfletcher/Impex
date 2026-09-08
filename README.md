@@ -290,80 +290,28 @@ listings.
 
 ## Dashboard
 
+Impex renders its dashboard through [Atrium](https://github.com/jayi/atrium), which it requires. Define Atrium's gate and Impex appears in the sidebar:
+
 ```php
-'ui' => ['enabled' => true, 'path' => 'impex/ui', 'middleware' => ['web', 'auth', 'can:admin']],
+use Illuminate\Support\Facades\Gate;
+
+Gate::define('viewAtrium', fn ($user) => $user->is_admin);
 ```
 
-```bash
-php artisan vendor:publish --tag=impex-assets
-```
+Screens: runs filterable by status, flow, trigger, owner and tag; run detail with the step timeline, the rollback path, and a signal form for a waiting run; the message ledger in both directions; the flow catalogue with a trigger form; and channel health.
 
-A prebuilt Vue 3 bundle ships in `public/`, so a host application needs no build
-step. Screens: runs (filterable by status, flow, owner and tag), run detail with
-the step timeline and rollback path, the message ledger in both directions, the
-flow catalogue with a trigger form, and channel health.
+Impex also contributes three dashboard widgets — run status counts, recent failures and message volume. They are **offered** in Atrium's widget picker; none is placed on anyone's dashboard automatically.
 
-Four auth modes via `impex.ui.auth.mode`:
-
-| Mode | The dashboard sends | Use when |
-|---|---|---|
-| `session` | same-origin cookies + CSRF token | the dashboard sits behind your `web` middleware — the default |
-| `token` | a bearer token from a `UiTokenResolver` you implement | your API is behind token auth and you can mint a short-lived token server-side |
-| `oauth` | a bearer token from authorization-code + PKCE | your API is behind Passport or another OAuth server |
-| `custom` | whatever `window.ImpexAuth` returns | anything else — define the driver on the host page before the bundle loads |
-
-### With Laravel Passport
-
-The dashboard is a browser app with no server side of its own, so it authorises
-as a **public client** using PKCE — there is no client secret anywhere in the
-bundle.
-
-```bash
-php artisan passport:client --public
-# Redirect URI: https://your-app.test/impex/ui
-```
+Atrium owns the path, the middleware and the authorization gate, so the only setting here is the switch:
 
 ```php
 // config/impex.php
-'routes' => [
-    'middleware' => ['api', 'auth:api'],       // Passport guards the API
-],
-
-'mcp' => [
-    'web' => ['enabled' => true, 'route' => 'mcp/impex', 'middleware' => ['auth:api']],
-],
-
-'ui' => [
-    'enabled' => true,
-    'middleware' => ['web', 'auth', 'can:viewImpex'],
-    'auth' => [
-        'mode' => 'oauth',
-        'oauth' => [
-            'client_id' => env('IMPEX_OAUTH_CLIENT_ID'),
-            'authorize_url' => '/oauth/authorize',
-            'token_url' => '/oauth/token',
-            'scopes' => ['impex:read', 'impex:write'],
-        ],
-    ],
-],
+'ui' => ['enabled' => true],
 ```
 
-The redirect URI must match the dashboard's mounted path exactly, because that
-is where the driver sends the browser back. Tokens live in `sessionStorage`,
-renew through the refresh grant a minute before expiry, and fall back to a full
-authorize redirect when refresh fails — so a 401 mid-session is one retry, not
-an error the operator has to reason about.
+Set it to `false` to keep the JSON API without adding Impex to the dashboard.
 
-Note the two layers are independent: `ui.middleware` decides who may *load* the
-dashboard, `routes.middleware` decides who may call the API it talks to. With
-Passport you generally want both — a session guard on the page and `auth:api` on
-the endpoints.
-
-**It ships disabled.** The dashboard renders every payload that has crossed the
-boundary, so mounting it is an explicit decision and it needs real middleware.
-
-The dashboard is a pure client of the documented API — it uses no private
-endpoint. That is the test that the API is complete.
+> **Gate this carefully.** The dashboard renders every payload that has crossed your application boundary.
 
 ## Child workflows
 
