@@ -1,0 +1,10 @@
+# Larastan boots Testbench inside every analysis worker, and on Windows the
+# parallel workers race to rename bootstrap/cache/services.php, failing with
+# "Access is denied". Analysing in one process removes the race; the analysis
+# itself is platform independent and runs in parallel on Linux.
+includes:
+    - phpstan.neon.dist
+
+parameters:
+    parallel:
+        maximumNumberOfProcesses: 1

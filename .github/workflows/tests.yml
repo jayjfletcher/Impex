@@ -19,7 +19,7 @@ jobs:
     runs-on: ${{ matrix.os }}
 
     strategy:
-      fail-fast: true
+      fail-fast: false
       matrix:
         # Must stay in step with composer.json: php ^8.4 and
         # illuminate/support ^13.15. A lane outside those constraints cannot
@@ -55,7 +55,12 @@ jobs:
           composer run prepare
 
       - name: PHPStan
+        if: runner.os != 'Windows'
         run: composer analyse
+
+      - name: PHPStan (Windows)
+        if: runner.os == 'Windows'
+        run: vendor/bin/phpstan analyse --configuration=phpstan.windows.neon --no-progress
 
       - name: Linter
         run: composer lint:check
