@@ -18,6 +18,8 @@ use JayI\Impex\Models\Run;
 use JayI\Impex\Models\RunStep;
 use JayI\Impex\Support\Locks;
 use JayI\Impex\Support\PayloadStore;
+use ReflectionClass;
+use ReflectionMethod;
 use RuntimeException;
 use Throwable;
 
@@ -384,7 +386,10 @@ final class BatchRunner
         /** @var array<int, mixed> $arguments */
         $arguments = (array) $this->payloads->get($batch->source_arguments, null);
 
-        $source = $this->container->make($batch->source, array_values($arguments));
+        $source = $this->container->make(
+            $batch->source,
+            $this->nameArguments($batch->source, array_values($arguments)),
+        );
 
         if (! $source instanceof BatchSource) {
             throw new RuntimeException(sprintf(
@@ -395,5 +400,53 @@ final class BatchRunner
         }
 
         return $source;
+    }
+
+    /**
+     * Key positional arguments by the constructor parameter they fill.
+     *
+     * The container matches extra make() arguments by parameter NAME, so a
+     * positional list is silently ignored and the source is built entirely from
+     * its defaults. Recovering the names keeps
+     * `batch(Source::class, $a, $b)` working the way
+     * `action(Action::class, $a, $b)` does, where the arguments are spread into
+     * a method call and position is all that matters.
+     *
+     * @param  array<int, mixed>  $arguments
+     * @return array<string, mixed>
+     */
+    private function nameArguments(string $source, array $arguments): array
+    {
+        // The class name comes off a database column, so it is not known to
+        // name anything real until it is checked. A miss falls through to
+        // make(), which raises the binding error the caller needs to see.
+        if ($arguments === [] || ! class_exists($source)) {
+            return [];
+        }
+
+        $constructor = (new ReflectionClass($source))->getConstructor();
+
+        if (! $constructor instanceof ReflectionMethod) {
+            return [];
+        }
+
+        $named = [];
+
+        foreach ($constructor->getParameters() as $position => $parameter) {
+            if (! array_key_exists($position, $arguments)) {
+                break;
+            }
+
+            // A variadic tail takes every remaining argument, and the container
+            // cannot fill one by name — leave those to the source's defaults
+            // rather than binding the list to the wrong parameter.
+            if ($parameter->isVariadic()) {
+                break;
+            }
+
+            $named[$parameter->getName()] = $arguments[$position];
+        }
+
+        return $named;
     }
 }
