@@ -18,6 +18,17 @@ beforeEach(function (): void {
     config()->set('impex.flows', ['batching' => BatchFlow::class]);
 });
 
+it('passes constructor arguments to the batch source', function (): void {
+    // PagedSource defaults to 3 pages of 2, so only a non-default value proves
+    // the argument arrived: the container matches extra make() arguments by
+    // parameter name, and a positional list used to be dropped silently,
+    // leaving every source built from its defaults.
+    $run = app(Impex::class)->run('batching', [5]);
+
+    expect($run->refresh()->status)->toBe(RunStatus::Completed)
+        ->and(BatchItem::query()->count())->toBe(10);
+});
+
 it('keeps the replay history at one step whatever the item count', function (): void {
     $run = app(Impex::class)->run('batching', [3]);
 
