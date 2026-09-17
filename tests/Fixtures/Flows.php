@@ -635,3 +635,35 @@ final class DeadlineFlow extends Flow
             ->run();
     }
 }
+
+/**
+ * Declares one parameter of each type the console has to cast to, so a test can
+ * prove what `--argument` strings become by the time `handle()` sees them.
+ *
+ * `strict_types` is what makes this worth testing: without casting, the string
+ * the console sends raises a TypeError here rather than being coerced.
+ */
+final class TypedArgumentsFlow extends Flow
+{
+    /**
+     * @param  array<int, string>|string|null  $ids
+     * @return array<string, mixed>
+     */
+    public function handle(
+        ?string $since = null,
+        array|string|null $ids = null,
+        bool $initial = false,
+        int $size = 100,
+        float $tolerance = 0.5,
+        int $batchSize = 10,
+    ): array {
+        return [
+            'since' => $since,
+            'ids' => $ids,
+            'initial' => $initial,
+            'size' => $size,
+            'tolerance' => $tolerance,
+            'batchSize' => $batchSize,
+        ];
+    }
+}

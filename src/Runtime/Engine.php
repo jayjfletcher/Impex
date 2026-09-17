@@ -433,11 +433,15 @@ final class Engine
         try {
             $flow = $this->flows->make($run->flow_class)->withContext($context);
 
-            /** @var array<int, mixed> $arguments */
+            /** @var array<int|string, mixed> $arguments */
             $arguments = (array) $this->payloads->get($run->input, $run->input_artifact_id);
 
+            // Spread, not array_values: string keys are applied as named
+            // arguments, so a run started with only `initial` set leaves every
+            // other parameter on its declared default instead of being padded
+            // with nulls that mean something different.
             /** @phpstan-ignore-next-line handle() is declared by the concrete flow */
-            $result = $flow->handle(...array_values($arguments));
+            $result = $flow->handle(...$arguments);
         } catch (Suspended) {
             $this->applyTags($run, $context);
 

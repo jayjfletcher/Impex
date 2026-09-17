@@ -54,7 +54,9 @@ class Impex
      * a trigger endpoint can respond inside API Gateway's timeout however long
      * the flow takes to finish.
      *
-     * @param  array<int, mixed>  $arguments
+     * @param  array<int|string, mixed>  $arguments  Positional, or keyed by
+     *                                               parameter name to be applied
+     *                                               as named arguments.
      * @param  array<string, string>  $tags
      * @param  iterable<int|string, Model>  $owners  models keyed by role
      */
@@ -77,7 +79,11 @@ class Impex
         }
 
         $class = $this->flows->class($slug);
-        $stored = $this->payloads->put(array_values($arguments), ArtifactKind::Payload);
+        // Keys are kept rather than flattened: a caller may pass arguments by
+        // name, which the engine applies as named arguments, so the names have
+        // to survive into the stored payload and back out on replay. A plain
+        // positional list has no string keys and is unaffected.
+        $stored = $this->payloads->put($arguments, ArtifactKind::Payload);
 
         $run = Run::query()->create([
             'flow' => $slug,
@@ -109,7 +115,8 @@ class Impex
      * parks on a signal or a timer will not finish and is returned as it
      * stands; the budget is `impex.limits.sync_seconds`.
      *
-     * @param  array<int, mixed>  $arguments
+     * @param  array<int|string, mixed>  $arguments  Positional, or keyed by
+     *                                               parameter name.
      * @param  array<string, string>  $tags
      * @param  iterable<int|string, Model>  $owners
      */

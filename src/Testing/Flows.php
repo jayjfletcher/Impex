@@ -38,7 +38,8 @@ final class Flows
     /**
      * Start a run and drive it to completion in-process.
      *
-     * @param  array<int, mixed>  $arguments
+     * @param  array<int|string, mixed>  $arguments  Positional, or keyed by
+     *                                               parameter name.
      */
     public static function run(string $slug, array $arguments = [], ?int $seconds = null): Run
     {
