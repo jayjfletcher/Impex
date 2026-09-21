@@ -22,7 +22,7 @@
     "require": {
         "php": "^8.4",
         "illuminate/support": "^13.15",
-        "laravel/mcp": "^0.9",
+        "laravel/mcp": "^1.0",
         "jayi/atrium": "dev-main"
     },
     "require-dev": {
