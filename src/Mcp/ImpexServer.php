@@ -23,6 +23,7 @@ use Laravel\Mcp\Server\Attributes\Instructions;
 use Laravel\Mcp\Server\Attributes\Name;
 use Laravel\Mcp\Server\Attributes\Version;
 use Laravel\Mcp\Server\Tool;
+use Laravel\Mcp\Server\Tools\ToolSearch;
 
 #[Name('Impex')]
 #[Version('1.0.0')]
@@ -39,31 +40,33 @@ use Laravel\Mcp\Server\Tool;
 final class ImpexServer extends Server
 {
     /**
-     * @var array<int, class-string<Tool>|Tool>
+     * @var array<class-string<ToolSearch>, array<int, class-string<Tool>|Tool>>
      */
     protected array $tools = [
-        // Flows
-        ListFlowsTool::class,
-        RunFlowTool::class,
+        ToolSearch::class => [
+            // Flows
+            ListFlowsTool::class,
+            RunFlowTool::class,
 
-        // Runs
-        ListRunsTool::class,
-        ShowRunTool::class,
-        CancelRunTool::class,
-        RetryRunTool::class,
+            // Runs
+            ListRunsTool::class,
+            ShowRunTool::class,
+            CancelRunTool::class,
+            RetryRunTool::class,
 
-        // Run detail
-        ListRunStepsTool::class,
-        SignalRunTool::class,
+            // Run detail
+            ListRunStepsTool::class,
+            SignalRunTool::class,
 
-        // Ownership
-        ListRunOwnersTool::class,
-        AttachRunOwnerTool::class,
-        DetachRunOwnerTool::class,
+            // Ownership
+            ListRunOwnersTool::class,
+            AttachRunOwnerTool::class,
+            DetachRunOwnerTool::class,
 
-        // Ledger
-        ListMessagesTool::class,
-        ShowMessageTool::class,
-        ListChannelsTool::class,
+            // Ledger
+            ListMessagesTool::class,
+            ShowMessageTool::class,
+            ListChannelsTool::class,
+        ],
     ];
 }

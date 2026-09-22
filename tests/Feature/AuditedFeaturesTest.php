@@ -11,7 +11,6 @@ use JayI\Impex\Enums\StepStatus;
 use JayI\Impex\Exceptions\DeadlineExceededException;
 use JayI\Impex\Exceptions\FlowVersionMismatchException;
 use JayI\Impex\Impex;
-use JayI\Impex\Mcp\ImpexServer;
 use JayI\Impex\Mcp\Tools\RunFlowTool;
 use JayI\Impex\Models\Run;
 use JayI\Impex\Runtime\Engine;
@@ -284,7 +283,7 @@ it('exposes version, deadline and wait over the API', function (): void {
 });
 
 it('exposes the same over MCP', function (): void {
-    ImpexServer::tool(RunFlowTool::class, [
+    mcpTool(RunFlowTool::class, [
         'flow' => 'versioned',
         'version' => 'v1',
         'wait' => true,

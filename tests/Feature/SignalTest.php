@@ -10,7 +10,6 @@ use JayI\Impex\Enums\StepType;
 use JayI\Impex\Exceptions\CannotSignalTerminalRunException;
 use JayI\Impex\Exceptions\SignalTimeoutException;
 use JayI\Impex\Impex;
-use JayI\Impex\Mcp\ImpexServer;
 use JayI\Impex\Mcp\Tools\SignalRunTool;
 use JayI\Impex\Models\Run;
 use JayI\Impex\Models\Signal;
@@ -199,7 +198,7 @@ it('answers 200 with nothing delivered for if_running over the API', function ()
 it('reports delivered false over MCP for a finished run', function (): void {
     $run = app(Impex::class)->run('linear', [1]);
 
-    ImpexServer::tool(SignalRunTool::class, [
+    mcpTool(SignalRunTool::class, [
         'run' => (string) $run->getKey(),
         'name' => 'approval',
         'if_running' => true,
