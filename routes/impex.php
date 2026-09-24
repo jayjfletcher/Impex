@@ -19,6 +19,16 @@ $prefix = config('impex.routes.prefix');
 /** @var array<int, string> $middleware */
 $middleware = config('impex.routes.middleware');
 
+/**
+ * Inbound channel endpoints authenticate per request with the channel's
+ * signing secret, not with an operator's session or token, so they carry their
+ * own stack. Putting them behind the operator middleware would lock out the
+ * very senders they exist to receive — an upstream has no user and no role.
+ *
+ * @var array<int, string> $channelMiddleware
+ */
+$channelMiddleware = config('impex.routes.channel_middleware');
+
 Route::prefix($prefix)->middleware($middleware)->name('impex.')->group(function (): void {
     Route::get('flows', [FlowController::class, 'index'])->name('flows.index');
     Route::post('flows/{flow}/runs', [FlowController::class, 'run'])->name('flows.runs.store');
@@ -38,8 +48,13 @@ Route::prefix($prefix)->middleware($middleware)->name('impex.')->group(function 
     Route::get('messages', [MessageController::class, 'index'])->name('messages.index');
     Route::get('messages/{message}', [MessageController::class, 'show'])->name('messages.show');
 
+    // The channel listing is an operator read — what boundaries exist, not
+    // traffic across one — so it stays on the operator stack above. Only the
+    // receive endpoints move to the signature-authenticated group below.
     Route::get('channels', ChannelIndexController::class)->name('channels.index');
+});
 
+Route::prefix($prefix)->middleware($channelMiddleware)->name('impex.')->group(function (): void {
     // Channels with a custom path get their own named route. Everything else is
     // served by the generic endpoint below, which resolves the channel at
     // request time so adding one never depends on the route cache.

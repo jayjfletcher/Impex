@@ -126,3 +126,51 @@ it('records non-HTTP egress the middleware cannot see', function (): void {
         ->and($message->direction)->toBe(Direction::Outbound)
         ->and($message->bytes)->toBe(22);
 });
+
+/**
+ * A channel with no `signing_secret` — omitted, or an env var that resolved to
+ * null in production — cannot authenticate anything. It fails closed rather
+ * than accepting every request that reaches it, which would be an open
+ * workflow trigger for any caller who knows the channel name.
+ */
+it('refuses a channel configured without a signing secret', function (): void {
+    config()->set('impex.channels', [
+        'unsigned-feed' => [
+            'direction' => 'inbound',
+            'flow' => 'ingest',
+        ],
+    ]);
+
+    $this->call(
+        'POST',
+        '/impex/channels/unsigned-feed',
+        server: ['CONTENT_TYPE' => 'application/json'],
+        content: (string) json_encode(['sku' => 'ABC-1']),
+    )->assertStatus(403);
+
+    $message = Message::query()->firstOrFail();
+
+    // Recorded but not dispatched: the attempt is evidence, the flow is not run.
+    expect($message->signature_valid)->toBeFalse()
+        ->and($message->run_id)->toBeNull()
+        ->and(Calls::count('ingest'))->toBe(0);
+});
+
+it('refuses a channel whose signing secret is an empty string', function (): void {
+    config()->set('impex.channels', [
+        'blank-secret' => [
+            'direction' => 'inbound',
+            'signing_secret' => '',
+            'flow' => 'ingest',
+        ],
+    ]);
+
+    $this->call(
+        'POST',
+        '/impex/channels/blank-secret',
+        server: ['CONTENT_TYPE' => 'application/json'],
+        content: (string) json_encode(['sku' => 'ABC-1']),
+    )->assertStatus(403);
+
+    expect(Calls::count('ingest'))->toBe(0);
+});

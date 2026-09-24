@@ -15,8 +15,14 @@ final class HmacSha256Validator implements SignatureValidator
 {
     public function isValid(Request $request, ChannelConfig $config): bool
     {
+        // A channel with no secret cannot authenticate anything, so it fails
+        // closed. Returning true here would make a misconfigured channel — one
+        // whose `signing_secret` is absent, or whose env var resolved to null
+        // in production — accept every request that reached it: an open
+        // workflow trigger rather than a lax one. The ledger still records the
+        // attempt; only the dispatch is refused.
         if (! $config->verifiesSignatures()) {
-            return true;
+            return false;
         }
 
         $provided = $request->header($config->signatureHeader);

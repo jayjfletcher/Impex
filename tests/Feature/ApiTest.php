@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use Illuminate\Routing\RouteCollection;
 use JayI\Impex\Enums\RunStatus;
 use JayI\Impex\Impex;
 use JayI\Impex\Models\FlowOverride;
@@ -209,4 +210,40 @@ it('lists channels without leaking their signing secrets', function (): void {
     ]);
 
     expect($response->content())->not->toContain('shhh');
+});
+
+/**
+ * Operator endpoints and inbound channel receive endpoints authenticate
+ * differently — an operator token versus the channel's signing secret — so
+ * they must not share a middleware stack. A host that gates the operator
+ * surface behind a role would otherwise lock out every upstream sender.
+ */
+it('keeps the channel receive routes off the operator middleware stack', function (): void {
+    // Both keys ship as ['api'], so the stacks are told apart here by giving
+    // them distinct values and re-registering the routes. Comparing each route
+    // against config alone would pass even if the group split were removed.
+    config()->set('impex.routes.middleware', ['api', 'operator-gate']);
+    config()->set('impex.routes.channel_middleware', ['api', 'channel-stack']);
+
+    $router = app('router');
+    $router->setRoutes(new RouteCollection);
+
+    require dirname(__DIR__, 2).'/routes/impex.php';
+
+    $router->getRoutes()->refreshNameLookups();
+    $routes = $router->getRoutes();
+
+    $receive = $routes->getByName('impex.channels.receive');
+    $listing = $routes->getByName('impex.channels.index');
+    $runs = $routes->getByName('impex.runs.index');
+
+    // A host that gates the operator surface behind a role must not have that
+    // gate land on the receive endpoint, or every upstream sender is locked
+    // out of the surface built to receive them.
+    expect($receive)->not->toBeNull()
+        ->and($receive->middleware())->toBe(['api', 'channel-stack'])
+        ->and($runs->middleware())->toBe(['api', 'operator-gate'])
+        // The listing is an operator read of what boundaries exist, not
+        // traffic across one, so it stays on the operator stack.
+        ->and($listing->middleware())->toBe(['api', 'operator-gate']);
 });

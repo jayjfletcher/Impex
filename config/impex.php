@@ -187,7 +187,15 @@ return [
     |
     | The prefix and middleware applied to the Impex API routes. Add
     | authentication middleware before exposing these in production —
-    | they trigger and cancel workflows.
+    | they trigger and cancel workflows and expose the ledger of every
+    | payload that has crossed the application boundary.
+    |
+    | `channel_middleware` is the separate stack for the inbound channel
+    | receive endpoints. Those authenticate per request with the channel's
+    | signing secret rather than with an operator token, so the operator
+    | middleware above would lock out the upstreams they exist to receive.
+    | Add a throttle of your own: it is an unauthenticated-by-token surface,
+    | and only the application knows what limiter and budget it wants.
     |
     */
 
@@ -195,6 +203,7 @@ return [
         'enabled' => true,
         'prefix' => 'impex',
         'middleware' => ['api'],
+        'channel_middleware' => ['api'],
     ],
 
     /*
