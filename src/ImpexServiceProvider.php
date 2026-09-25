@@ -4,10 +4,10 @@ declare(strict_types=1);
 
 namespace JayI\Impex;
 
-use Atrium\Atrium\Facades\Atrium;
 use Illuminate\Console\Scheduling\Schedule;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\ServiceProvider;
+use JayI\Atrium\Facades\Atrium;
 use JayI\Impex\Atrium\ImpexPlugin;
 use JayI\Impex\Channels\ChannelRegistry;
 use JayI\Impex\Console\Commands\ImpexCommand;

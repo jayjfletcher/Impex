@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace JayI\Impex\Tests;
 
-use Atrium\Atrium\AtriumServiceProvider;
+use JayI\Atrium\AtriumServiceProvider;
 use JayI\Impex\ImpexServiceProvider;
 use Laravel\Mcp\Server\McpServiceProvider;
 use Orchestra\Testbench\TestCase as Orchestra;

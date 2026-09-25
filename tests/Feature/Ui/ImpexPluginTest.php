@@ -2,11 +2,11 @@
 
 declare(strict_types=1);
 
-use Atrium\Atrium\Navigation\NavItem;
-use Atrium\Atrium\Plugins\PluginRegistry;
-use Atrium\Atrium\Widgets\WidgetDefinition;
-use Atrium\Atrium\Widgets\WidgetRegistry;
 use Illuminate\Support\Facades\Route;
+use JayI\Atrium\Navigation\NavItem;
+use JayI\Atrium\Plugins\PluginRegistry;
+use JayI\Atrium\Widgets\WidgetDefinition;
+use JayI\Atrium\Widgets\WidgetRegistry;
 use JayI\Impex\Atrium\Badges;
 use JayI\Impex\Atrium\ImpexPlugin;
 use JayI\Impex\Enums\Direction;
