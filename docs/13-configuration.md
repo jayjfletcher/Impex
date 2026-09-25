@@ -28,7 +28,6 @@ row takes precedence, so the dashboard can reschedule without a deploy.
 |---|---|---|
 | `connection` | `null` | Queue connection for engine jobs. `null` uses the app default. |
 | `queue` | `null` | Queue name. |
-| `after_commit` | `true` | Dispatch after the database transaction commits. |
 
 Jobs carry ULIDs only, never payloads, so a message can never approach SQS's
 256KB limit however large a run's data is.
@@ -66,7 +65,6 @@ per-step values override these.
 | `disk` | `null` | Flysystem disk for payloads. Point at S3 on Vapor. `null` uses the app default. |
 | `path` | `'impex'` | Path prefix on that disk. |
 | `inline_threshold` | `65536` | Bytes above which a payload goes to the disk instead of a column. |
-| `stream_threshold` | `8388608` | Bytes above which scratch work streams rather than buffering. |
 
 ## `cache`
 
@@ -127,8 +125,12 @@ your own class to replace its policy. See
 | `enabled` | `true` |
 | `prefix` | `'impex'` |
 | `middleware` | `['api']` |
+| `channel_middleware` | `['api']` |
 
-Add authentication before exposing these.
+Add authentication to `middleware` before exposing these. `channel_middleware`
+is the separate stack for the inbound channel receive endpoints, which
+authenticate with the channel's signing secret rather than a user, so keep
+operator authentication off it and add a throttle of your own.
 
 ## `mcp`
 
@@ -140,6 +142,16 @@ Add authentication before exposing these.
 ```
 
 Both ship disabled.
+
+## `cortex`
+
+| Key | Default | Meaning |
+|---|---|---|
+| `enabled` | `true` | Connect the MCP server and tools to `jayi/cortex` when it is installed. |
+| `server` | `'impex'` | The server's name in Cortex. |
+| `tools` | `null` | `null` for every tool, or a list of tool names such as `['list-runs-tool', 'show-run-tool']`. |
+
+Cortex is optional; without it these keys do nothing.
 
 ## `ui`
 
@@ -167,7 +179,6 @@ See [Dashboard](11-dashboard.md).
         'idempotency_header' => 'X-Request-Id',
         'flow' => 'extract-products',
         'store_headers' => ['content-type'],
-        'queue' => 'impex-ingest',
         'path' => null,
     ],
 ],

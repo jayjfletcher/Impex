@@ -1,6 +1,6 @@
 # Dashboard
 
-Impex renders its dashboard through [Atrium](https://github.com/jayi/atrium),
+Impex renders its dashboard through [Atrium](https://github.com/jayjfletcher/Atrium),
 which it requires. There is no separate bundle, no build step, and no auth
 mode to choose: the pages are server-rendered Blade behind Atrium's gate.
 
@@ -57,6 +57,12 @@ Impex contributes three widgets to Atrium's picker:
 
 These are **offered**, not placed. A widget appears on a dashboard only when
 someone adds it.
+
+## Settings
+
+Impex adds a read-only panel to Atrium's settings showing the effective
+`retention`, `limits` and `artifacts` config and the message preview size.
+Change them in `config/impex.php`.
 
 ## Search
 

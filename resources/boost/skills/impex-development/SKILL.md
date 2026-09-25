@@ -141,7 +141,7 @@ Or put a cron expression in `impex.schedule` keyed by slug. A row in
 `impex_flows` overrides that schedule and can disable the flow without a deploy.
 
 Over HTTP, `POST impex/flows/{flow}/runs` answers `202` with the run. Over MCP,
-`run-flow` does the same — both call one Action. Add authentication middleware
+`run-flow-tool` does the same — both call one Action. Add authentication middleware
 to `impex.routes.middleware` and `impex.mcp.web.middleware` before exposing
 either: they trigger and cancel workflows and read every recorded payload. With
 `impex.authorization` on (the default), both act as the signed-in user: they
@@ -162,13 +162,13 @@ repeat a side effect.
 
 ### 9. Watch it
 
-Enable `impex.ui` behind admin middleware for the dashboard, or use the
-`list-runs` / `show-run` tools. Two independent layers: `impex.ui.middleware`
-decides who may load the dashboard, `impex.routes.middleware` decides who may
-call the API. `impex.ui.auth.mode` decides how the dashboard authenticates to
-that API — `session`, `token`, `oauth` (PKCE, for Passport), or `custom`. A run at `waiting` is blocked on a signal or a
-timer, not stuck. A failed run may have rolled back — check the steps with
-phase `rollback` to see what was rolled back.
+The dashboard renders through Atrium: define Atrium's `viewAtrium` gate and
+Impex appears in its sidebar (set `impex.ui.enabled` to `false` to leave it
+out). Atrium's gate decides who may load the dashboard, `impex.routes.middleware`
+decides who may call the API. Over MCP the tools sit behind `search_tools` and
+`execute_tools`; use `list-runs-tool` and `show-run-tool`. A run at `waiting` is
+blocked on a signal or a timer, not stuck. A failed run may have rolled back —
+check the steps with phase `rollback` to see what was rolled back.
 
 ## Rules, References, and Templates
 

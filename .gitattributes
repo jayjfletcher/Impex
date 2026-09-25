@@ -1,8 +1,5 @@
 * text=auto eol=lf
 
-/public/*.js  linguist-generated=true
-/public/*.css linguist-generated=true
-
 /.github            export-ignore
 /.gitattributes     export-ignore
 /.gitignore         export-ignore
@@ -16,10 +13,4 @@
 /.agents            export-ignore
 /CLAUDE.md          export-ignore
 /AGENTS.md          export-ignore
-/AGENTS_PACKAGE.md  export-ignore
-/resources/js       export-ignore
-/resources/css      export-ignore
-/vite.config.js     export-ignore
-/package.json       export-ignore
-/package-lock.json  export-ignore
 /docs               export-ignore

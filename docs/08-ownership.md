@@ -89,8 +89,8 @@ the only check:
 With it on, every call acts as the authenticated user:
 
 - A guest is refused (`403` over HTTP, `Unauthorized.` over MCP).
-- `GET impex/runs` and `list-runs` return only the runs the user owns, in any
-  role; `GET impex/messages` and `list-messages` only the messages of those
+- `GET impex/runs` and `list-runs-tool` return only the runs the user owns, in any
+  role; `GET impex/messages` and `list-messages-tool` only the messages of those
   runs. Your own `owner_type`/`owner_id` filters narrow that further.
 - Starting a flow attaches the user to the new run in the `owner` role. A
   reused idempotency key that names someone else's run is refused.
@@ -138,20 +138,20 @@ policy is registered.
 
 | HTTP | MCP tool | Ability |
 |---|---|---|
-| `GET flows` | `list-flows` | `viewAny` on `FlowOverride` |
-| `POST flows/{flow}/runs` | `run-flow` | `create` on `Run`, with the slug |
-| `GET runs` | `list-runs` | `viewAny` on `Run` |
-| `GET runs/{run}` | `show-run` | `view` on the run |
-| `POST runs/{run}/cancel` | `cancel-run` | `cancel` on the run |
-| `POST runs/{run}/retry` | `retry-run` | `retry` on the run |
-| `GET runs/{run}/steps` | `list-run-steps` | `viewAny` on `RunStep`, with the run |
-| `POST runs/{run}/signals` | `signal-run` | `create` on `Signal`, with the run |
-| `GET runs/{run}/owners` | `list-run-owners` | `viewAny` on `RunOwner`, with the run |
-| `POST runs/{run}/owners` | `attach-run-owner` | `create` on `RunOwner`, with the run |
-| `DELETE runs/{run}/owners/{owner}` | `detach-run-owner` | `delete` on the owner record |
-| `GET messages` | `list-messages` | `viewAny` on `Message` |
-| `GET messages/{message}` | `show-message` | `view` on the message |
-| `GET channels` | `list-channels` | signed in only — channels are config, not a model |
+| `GET flows` | `list-flows-tool` | `viewAny` on `FlowOverride` |
+| `POST flows/{flow}/runs` | `run-flow-tool` | `create` on `Run`, with the slug |
+| `GET runs` | `list-runs-tool` | `viewAny` on `Run` |
+| `GET runs/{run}` | `show-run-tool` | `view` on the run |
+| `POST runs/{run}/cancel` | `cancel-run-tool` | `cancel` on the run |
+| `POST runs/{run}/retry` | `retry-run-tool` | `retry` on the run |
+| `GET runs/{run}/steps` | `list-run-steps-tool` | `viewAny` on `RunStep`, with the run |
+| `POST runs/{run}/signals` | `signal-run-tool` | `create` on `Signal`, with the run |
+| `GET runs/{run}/owners` | `list-run-owners-tool` | `viewAny` on `RunOwner`, with the run |
+| `POST runs/{run}/owners` | `attach-run-owner-tool` | `create` on `RunOwner`, with the run |
+| `DELETE runs/{run}/owners/{owner}` | `detach-run-owner-tool` | `delete` on the owner record |
+| `GET messages` | `list-messages-tool` | `viewAny` on `Message` |
+| `GET messages/{message}` | `show-message-tool` | `view` on the message |
+| `GET channels` | `list-channels-tool` | signed in only — channels are config, not a model |
 
 **The inbound channel endpoints are never user-authorized.** `POST
 channels/{channel}` authenticates each request with the channel's signing

@@ -2,7 +2,7 @@
 
 Workflow engine and data-flow ledger for Laravel.
 
-Impex runs multi-step work as deterministic, replayable flows with rolling back
+Impex runs multi-step work as deterministic, replayable flows with automatic
 rollback, and records every payload that crosses the application boundary so you
 can see the flow of data in and out. It is designed for a runtime with a hard
 execution ceiling, a small queue message, and no local disk.
@@ -258,7 +258,7 @@ Triggering answers `202` with the run — never inline execution.
 
 Every endpoint is one line: validation rules come from an Action's static
 `rules()`, and the request's `persist()` calls that same Action. The MCP surface
-will consume the same Actions, so the two cannot drift.
+calls the same Actions, so the two cannot drift.
 
 **Add authentication middleware before exposing any of this.** The default
 `impex.routes.middleware` is `['api']` — these endpoints trigger and cancel
@@ -286,13 +286,15 @@ a tool.
 ],
 ```
 
-Fourteen tools: `list-flows`, `run-flow`, `list-runs`, `show-run`, `cancel-run`,
-`retry-run`, `list-run-steps`, `signal-run`, `list-run-owners`,
-`attach-run-owner`, `detach-run-owner`, `list-messages`, `show-message`,
-`list-channels`.
+The server lists two entry points, `search_tools` and `execute_tools`, with
+fourteen tools behind them: `list-flows-tool`, `run-flow-tool`, `list-runs-tool`,
+`show-run-tool`, `cancel-run-tool`, `retry-run-tool`, `list-run-steps-tool`,
+`signal-run-tool`, `list-run-owners-tool`, `attach-run-owner-tool`,
+`detach-run-owner-tool`, `list-messages-tool`, `show-message-tool` and
+`list-channels-tool`.
 
 The server's instructions tell an agent the things it cannot infer from the
-schema: that `run-flow` is asynchronous and `show-run` must be polled, that a
+schema: that `run-flow-tool` is asynchronous and `show-run-tool` must be polled, that a
 `waiting` run is blocked on a signal, and that payloads are never inlined in
 listings.
 
@@ -321,7 +323,7 @@ About how it works:
 
 ## Dashboard
 
-Impex renders its dashboard through [Atrium](https://github.com/jayi/atrium), which it requires. Define Atrium's gate and Impex appears in the sidebar:
+Impex renders its dashboard through [Atrium](https://github.com/jayjfletcher/Atrium), which it requires. Define Atrium's gate and Impex appears in the sidebar:
 
 ```php
 use Illuminate\Support\Facades\Gate;
@@ -530,8 +532,9 @@ Event::listen(ActionFinishedEvent::class, fn (ActionFinishedEvent $event) => Log
 
 | | |
 |---|---|
-| `impex:tick` | fire due timers, reclaim lapsed step leases |
+| `impex:tick` | fire due timers, reclaim lapsed leases, enforce deadlines |
 | `impex:run {flow}` | start a run |
+| `impex:signal {run} {name}` | deliver a signal to a run |
 | `impex:prune` | prune expired runs, messages, and artifacts |
 
 ## Roadmap

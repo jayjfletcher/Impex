@@ -134,7 +134,7 @@ later as a slow step that ran twice.
 
 ## Contracts
 
-Four, each with a real second implementation or a real host-app need. Everything
+Five, each with a real second implementation or a real host-app need. Everything
 else is a concrete class, and becomes a contract when a second implementation
 actually exists.
 
@@ -186,6 +186,13 @@ Event::listen(function (RunFailed $event): void {
 
 Events carry identifiers, not models, so a listener queued onto SQS stays well
 inside the message limit.
+
+Alongside these engine events, every model fires a class-based event per
+Eloquent hook (`JayI\Impex\Events\Model\RunCreatedEvent`, ...) and every
+action fires a start and a finish event (`JayI\Impex\Events\Action\FlowRanActionEvent`,
+...). Listen to `ModelLifecycleEvent`, `ActionStartingEvent` or
+`ActionFinishedEvent` in `JayI\Impex\Contracts` to receive a whole family. See
+the [README](../README.md#events) for the full list.
 
 ## Registering channels from a package
 

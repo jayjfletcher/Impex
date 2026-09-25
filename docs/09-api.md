@@ -6,6 +6,7 @@
     'enabled' => true,
     'prefix' => 'impex',
     'middleware' => ['api'],
+    'channel_middleware' => ['api'],
 ],
 ```
 

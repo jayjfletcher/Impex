@@ -2,7 +2,6 @@ laravel: '@testbench'
 
 providers:
   - JayI\Atrium\AtriumServiceProvider
-  - Dedoc\Scramble\ScrambleServiceProvider
   - Workbench\App\Providers\WorkbenchServiceProvider
 
 migrations:

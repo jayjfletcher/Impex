@@ -45,7 +45,6 @@ Provider wiring anti-patterns:
 - `resources/views/`
 - `lang/`
 - `database/migrations/`
-- `public/`
 - `src/Console/Commands/`
 - `tests/Feature/` and `tests/Unit/`
 

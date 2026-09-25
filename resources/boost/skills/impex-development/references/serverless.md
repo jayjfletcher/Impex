@@ -134,4 +134,6 @@ run item-by-item; use `batch` for throughput.
 ## Concurrency
 
 A million-item batch can saturate an account's Lambda concurrency and starve
-the web tier. Set per-flow caps before running a sweep against production.
+the web tier. Route the run to its own queue (`queue_connection` and `queue` on
+the run, which its jobs inherit) and cap that queue's concurrency before running
+a sweep against production.

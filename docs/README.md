@@ -16,7 +16,7 @@
 | [Ownership](08-ownership.md) | Polymorphic owners and scoping |
 | [HTTP API](09-api.md) | Every endpoint, with requests and responses |
 | [MCP](10-mcp.md) | Every tool, and how parity is enforced |
-| [Dashboard](11-dashboard.md) | Mounting it, and the four auth modes |
+| [Dashboard](11-dashboard.md) | The Atrium pages, widgets, settings and search |
 | [Extending](12-extending.md) | Registering flows from a package, contracts, events |
 | [Configuration](13-configuration.md) | Every config key |
 | [Schema](14-schema.md) | Every table and column |

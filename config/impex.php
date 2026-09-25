@@ -71,7 +71,6 @@ return [
     'queue' => [
         'connection' => null,
         'queue' => null,
-        'after_commit' => true,
     ],
 
     /*
@@ -83,16 +82,21 @@ return [
     | Vapor is capped at Lambda's 900-second ceiling. `lease_seconds` is how
     | long a claimed step is owned before another invocation may reclaim it:
     | set it above the longest step, or a slow step will be run twice.
-    | `fan_out_max` bounds per-item fan-out, because replay is O(history)
-    | per drive — use batch() above it. `sync_seconds` caps how long a
-    | trigger may block when a caller asks to wait for a result.
+    | `resume_margin_seconds` is the headroom before `max_step_seconds` at
+    | which `shouldYield()` flips, and `max_resumptions` is how many times
+    | one step may checkpoint before failing. `fan_out_max` bounds per-item
+    | fan-out, because replay is O(history) per drive — use batch() above
+    | it. `sync_seconds` caps how long a trigger may block when a caller
+    | asks to wait for a result.
     |
     */
 
     'limits' => [
         'max_step_seconds' => 840,
+        'resume_margin_seconds' => 30,
         'lease_seconds' => 900,
         'lock_seconds' => 120,
+        'max_resumptions' => 10000,
         'fan_out_max' => 100,
         'sync_seconds' => 15,
     ],
@@ -132,7 +136,6 @@ return [
         'disk' => null,
         'path' => 'impex',
         'inline_threshold' => 65536,
-        'stream_threshold' => 8388608,
     ],
 
     /*
@@ -159,11 +162,13 @@ return [
     | `max_queue_delay` cannot be expressed as a delayed job. Longer waits are
     | written to `impex_timers` and swept by `impex:tick`. `claim_seconds`
     | is the sweep's lease: a timer claimed but never dispatched becomes
-    | claimable again after it, rather than stranding forever.
+    | claimable again after it, rather than stranding forever. Set `enabled`
+    | to false only if you schedule `impex:tick` yourself.
     |
     */
 
     'timers' => [
+        'enabled' => true,
         'max_queue_delay' => 900,
         'claim_seconds' => 300,
         'batch' => 250,

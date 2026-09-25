@@ -27,11 +27,13 @@ completion check was throttled.
 | Tag | Contents |
 |---|---|
 | `impex-config` | `config/impex.php` |
-| `impex-migrations` | the seven migrations |
-| `atrium-assets` | the Atrium dashboard's stylesheet and scripts |
-| `impex-views` | the dashboard shell view, if you want to customise it |
+| `impex-migrations` | the six migrations |
+| `impex-views` | the dashboard's Blade views, if you want to customise them |
 | `impex-lang` | translation strings |
 | `impex` | all of the above |
+
+The dashboard's stylesheet and scripts belong to Atrium and are published with
+its own `atrium-assets` tag. See [Dashboard](11-dashboard.md).
 
 ## Vapor checklist
 

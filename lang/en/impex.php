@@ -18,14 +18,9 @@ return [
     'retention' => 'Retention',
     'limits' => 'Limits',
     'artifacts' => 'Artifacts',
-    'completed_runs' => 'Completed runs',
-    'failed_runs' => 'Failed runs',
     'days' => ':count days',
-    'inline_threshold' => 'Inline threshold',
-    'sync_seconds' => 'Synchronous wait',
     'preview_bytes' => 'Message body preview',
     'bytes' => ':count bytes',
-    'seconds' => ':count seconds',
 
     // Widgets
     'widget_run_status' => 'Run status',
@@ -34,7 +29,6 @@ return [
     'widget_recent_failures_description' => 'Runs that failed most recently.',
     'widget_messages' => 'Message volume',
     'widget_messages_description' => 'Messages recorded over the last day.',
-    'active_runs' => 'Active runs',
     'no_failures' => 'No recent failures.',
 
     // Runs
@@ -106,11 +100,9 @@ return [
 
     // Flows
     'slug' => 'Slug',
-    'class' => 'Class',
     'schedule' => 'Schedule',
     'enabled' => 'Enabled',
     'disabled' => 'Disabled',
-    'arguments' => 'Arguments (JSON array)',
     'start' => 'Run',
     'no_flows' => 'No flows are registered.',
     'flow_started' => 'Run started.',
@@ -122,8 +114,6 @@ return [
     'no_channels' => 'No channels are registered.',
 
     // Shared
-    'actions' => 'Actions',
-    'view' => 'View',
     'none' => '—',
 
 ];

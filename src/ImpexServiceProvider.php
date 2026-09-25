@@ -10,7 +10,6 @@ use Illuminate\Support\ServiceProvider;
 use JayI\Atrium\Facades\Atrium;
 use JayI\Impex\Atrium\ImpexPlugin;
 use JayI\Impex\Channels\ChannelRegistry;
-use JayI\Impex\Console\Commands\ImpexCommand;
 use JayI\Impex\Console\Commands\PruneCommand;
 use JayI\Impex\Console\Commands\RunFlowCommand;
 use JayI\Impex\Console\Commands\SignalCommand;
@@ -115,16 +114,11 @@ class ImpexServiceProvider extends ServiceProvider
             __DIR__.'/../lang' => $this->app->langPath('vendor/impex'),
         ], ['impex', 'impex-lang']);
 
-        $this->publishes([
-            __DIR__.'/../public' => public_path('vendor/impex'),
-        ], ['impex', 'impex-assets']);
-
         $this->publishesMigrations([
             __DIR__.'/../database/migrations' => database_path('migrations'),
         ], ['impex', 'impex-migrations']);
 
         $this->commands([
-            ImpexCommand::class,
             PruneCommand::class,
             RunFlowCommand::class,
             SignalCommand::class,
@@ -160,12 +154,6 @@ class ImpexServiceProvider extends ServiceProvider
         $this->loadRoutesFrom(__DIR__.'/../routes/impex.php');
     }
 
-    /**
-     * Mount the dashboard when enabled in the config.
-     *
-     * Ships disabled and admin-only by intent: the dashboard renders every
-     * payload that has crossed the application boundary.
-     */
     /**
      * Register Impex with the Atrium dashboard.
      *

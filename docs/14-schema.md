@@ -124,7 +124,7 @@ Runtime overrides only. The registry decides which flows exist.
 | `slug` | unique; a row for an unregistered slug is inert |
 | `enabled` | nullable; only an explicit `false` disables |
 | `schedule` | overrides `impex.schedule` |
-| `queue`, `queue_connection`, `defaults` | |
+| `queue`, `queue_connection`, `defaults` | reserved; not read by the engine. Route a run with `impex_runs.queue_connection`/`queue` instead |
 
 ## `impex_batches` / `impex_batch_items`
 

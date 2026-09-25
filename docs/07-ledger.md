@@ -21,7 +21,6 @@ A channel is a named boundary configuration.
         'idempotency_header' => 'X-Request-Id',
         'flow' => 'extract-products',
         'store_headers' => ['content-type', 'x-request-id'],
-        'queue' => 'impex-ingest',
         'path' => null,   // defaults to channels/supplier-feed
     ],
 ],

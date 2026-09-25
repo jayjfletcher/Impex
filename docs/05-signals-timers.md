@@ -129,7 +129,7 @@ POST impex/runs/{run}/signals
 validation error: the request was well-formed, the run's state made it
 impossible. Pass `"if_running": true` to get `200` with `data: null` instead.
 
-Over MCP, `signal-run` takes the same arguments and reports
+Over MCP, `signal-run-tool` takes the same arguments and reports
 `{"delivered": false, "reason": "The run has finished."}` when `if_running`
 turned a conflict into a no-op.
 

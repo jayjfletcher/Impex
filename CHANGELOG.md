@@ -50,6 +50,7 @@
 
 ### Changed
 
+- Requires `laravel/framework` instead of `illuminate/support`, since the package uses form requests, events, queues and jobs from the framework.
 - Renamed the rollback vocabulary away from saga jargon: `saga()` is now
   `unit()`, `compensateWith()` is `undoWith()`, `CompensationFailure` is
   `RollbackFailure` (with `Halt` in place of `Stop`), the compensation phase is
@@ -64,8 +65,17 @@
 - `EngineOptions` validates that `lease_seconds` exceeds `max_step_seconds`,
   which previously would have surfaced as a slow step running twice.
 
+### Removed
+
+- The TypeScript SDK (`sdk/`), its npm workspace and `sdk:generate`/`sdk:build` scripts, and the `dedoc/scramble` dev dependency that exported its OpenAPI spec.
+- The scaffold's `impex:placeholder` command and placeholder translation file.
+- The empty `impex-assets` publish tag: the dashboard's assets belong to Atrium (`atrium-assets`).
+- The `impex.queue.after_commit` and `impex.artifacts.stream_threshold` config keys, which nothing read.
+
 ### Fixed
 
+- `config/impex.php` now lists `limits.resume_margin_seconds`, `limits.max_resumptions` and `timers.enabled`, which the engine already read with those defaults.
+- The MCP server instructions and docs name the tools as they are served (`run-flow-tool`, ...), behind `search_tools` / `execute_tools`.
 - Signalling a finished run now throws `CannotSignalTerminalRunException`
   (409 over HTTP) instead of silently writing a row nothing would consume.
 - A timed out signal wait is recorded as skipped rather than completed with
