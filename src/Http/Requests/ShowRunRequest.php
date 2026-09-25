@@ -10,6 +10,11 @@ use JayI\Impex\Http\Resources\RunResource;
 
 final class ShowRunRequest extends RunRequest
 {
+    public function authorize(): bool
+    {
+        return $this->allows('view', $this->run());
+    }
+
     public function rules(): array
     {
         return ShowRunAction::rules();

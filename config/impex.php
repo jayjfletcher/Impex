@@ -2,6 +2,27 @@
 
 declare(strict_types=1);
 
+use JayI\Impex\Models\Artifact;
+use JayI\Impex\Models\Batch;
+use JayI\Impex\Models\BatchItem;
+use JayI\Impex\Models\FlowOverride;
+use JayI\Impex\Models\Message;
+use JayI\Impex\Models\Run;
+use JayI\Impex\Models\RunOwner;
+use JayI\Impex\Models\RunStep;
+use JayI\Impex\Models\Signal;
+use JayI\Impex\Models\Timer;
+use JayI\Impex\Policies\ArtifactPolicy;
+use JayI\Impex\Policies\BatchItemPolicy;
+use JayI\Impex\Policies\BatchPolicy;
+use JayI\Impex\Policies\FlowOverridePolicy;
+use JayI\Impex\Policies\MessagePolicy;
+use JayI\Impex\Policies\RunOwnerPolicy;
+use JayI\Impex\Policies\RunPolicy;
+use JayI\Impex\Policies\RunStepPolicy;
+use JayI\Impex\Policies\SignalPolicy;
+use JayI\Impex\Policies\TimerPolicy;
+
 return [
 
     /*
@@ -178,6 +199,49 @@ return [
         'failed_runs_days' => 365,
         'messages_days' => 90,
         'artifacts_days' => 365,
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | Authorization
+    |--------------------------------------------------------------------------
+    |
+    | When on, every call acts as the authenticated user: they list only the
+    | runs they own (and those runs' messages), own the runs they start, and
+    | every call is checked against the policies below. Turn it off only for
+    | a trusted operator surface, where the route middleware is the only
+    | check. The inbound channel endpoints are never user-authorized — they
+    | authenticate with the channel's signature.
+    |
+    */
+
+    'authorization' => true,
+
+    /*
+    |--------------------------------------------------------------------------
+    | Policies
+    |--------------------------------------------------------------------------
+    |
+    | The policy the Gate uses for each model. With authorization on, the
+    | JSON API and MCP tools check every call against these. By default a
+    | run's owners may do anything with it and everyone else is denied;
+    | steps, owners, signals, timers, batches, messages and artifacts follow
+    | their run through the Gate. Point a model at your own class to replace
+    | its policy.
+    |
+    */
+
+    'policies' => [
+        Run::class => RunPolicy::class,
+        RunStep::class => RunStepPolicy::class,
+        RunOwner::class => RunOwnerPolicy::class,
+        Signal::class => SignalPolicy::class,
+        Timer::class => TimerPolicy::class,
+        Batch::class => BatchPolicy::class,
+        BatchItem::class => BatchItemPolicy::class,
+        Message::class => MessagePolicy::class,
+        Artifact::class => ArtifactPolicy::class,
+        FlowOverride::class => FlowOverridePolicy::class,
     ],
 
     /*

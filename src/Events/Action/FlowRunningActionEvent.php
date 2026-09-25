@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace JayI\Impex\Events\Action;
 
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Foundation\Events\Dispatchable;
 use Illuminate\Queue\SerializesModels;
 use JayI\Impex\Contracts\ActionStartingEvent;
@@ -24,5 +25,6 @@ final class FlowRunningActionEvent implements ActionStartingEvent
         public string $slug,
         public array $data,
         public RunTrigger $trigger,
+        public ?Model $owner = null,
     ) {}
 }

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace JayI\Impex\Actions;
 
+use Illuminate\Database\Eloquent\Model;
 use JayI\Impex\Enums\RunTrigger;
 use JayI\Impex\Events\Action\FlowRanActionEvent;
 use JayI\Impex\Events\Action\FlowRunningActionEvent;
@@ -39,12 +40,13 @@ final class RunFlowAction
 
     /**
      * @param  array<string, mixed>  $data
+     * @param  Model|null  $owner  Attached to the new run in the `owner` role.
      */
-    public function execute(string $slug, array $data = [], RunTrigger $trigger = RunTrigger::Api): Run
+    public function execute(string $slug, array $data = [], RunTrigger $trigger = RunTrigger::Api, ?Model $owner = null): Run
     {
-        FlowRunningActionEvent::dispatch($slug, $data, $trigger);
+        FlowRunningActionEvent::dispatch($slug, $data, $trigger, $owner);
 
-        $result = $this->perform($slug, $data, $trigger);
+        $result = $this->perform($slug, $data, $trigger, $owner);
 
         FlowRanActionEvent::dispatch($result);
 
@@ -54,7 +56,7 @@ final class RunFlowAction
     /**
      * @param  array<string, mixed>  $data
      */
-    private function perform(string $slug, array $data = [], RunTrigger $trigger = RunTrigger::Api): Run
+    private function perform(string $slug, array $data = [], RunTrigger $trigger = RunTrigger::Api, ?Model $owner = null): Run
     {
         if (! $this->flows->enabled($slug)) {
             throw DisabledFlowException::slug($slug);
@@ -75,6 +77,7 @@ final class RunFlowAction
             trigger: $trigger,
             idempotencyKey: $key,
             tags: $tags,
+            owners: $owner === null ? [] : ['owner' => $owner],
             version: isset($data['version']) ? (string) $data['version'] : null,
             expiresAt: isset($data['expires_in']) ? (int) $data['expires_in'] : null,
         );

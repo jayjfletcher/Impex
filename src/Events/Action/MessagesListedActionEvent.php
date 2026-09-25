@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace JayI\Impex\Events\Action;
 
 use Illuminate\Contracts\Pagination\CursorPaginator;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Foundation\Events\Dispatchable;
 use Illuminate\Queue\SerializesModels;
 use JayI\Impex\Contracts\ActionFinishedEvent;
@@ -23,5 +24,6 @@ final class MessagesListedActionEvent implements ActionFinishedEvent
      */
     public function __construct(
         public CursorPaginator $messages,
+        public ?Model $viewer = null,
     ) {}
 }

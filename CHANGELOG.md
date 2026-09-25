@@ -9,6 +9,10 @@
 - Model events: every model fires a class-based event for each Eloquent hook (`RunCreatingEvent`, `RunStepCreatedEvent`, ...), mapped by the `DispatchesModelEvents` trait.
 - Action events: every action fires a start event before its work and a finish event after commit, on success (`FlowRunningActionEvent` / `FlowRanActionEvent`, ...).
 - `ModelLifecycleEvent`, `ActionStartingEvent` and `ActionFinishedEvent` contracts, to listen to a whole family at once.
+- Policies for every model (`RunPolicy`, `RunStepPolicy`, `RunOwnerPolicy`, `SignalPolicy`, `TimerPolicy`, `BatchPolicy`, `BatchItemPolicy`, `MessagePolicy`, `ArtifactPolicy`, `FlowOverridePolicy`), registered with the Gate from the new `impex.policies` config. A run's owners may do anything with it; child models defer to their run through the Gate, so replacing the run policy flows down.
+- `impex.authorization` (on by default): every HTTP endpoint and MCP tool acts as the authenticated user, lists only the runs they own and those runs' messages, attaches them as `owner` of runs they start, and checks each call against the model's policy. Inbound channel endpoints stay signature-authenticated.
+- `ListRunOwnersAction`, with `RunOwnersListingActionEvent` / `RunOwnersListedActionEvent`; the run-owner endpoint and tool now go through it.
+- `ListRunsAction` and `ListMessagesAction` take an optional `$viewer`, and `RunFlowAction` an optional `$owner`; their action events carry them.
 - Replay engine: deterministic `handle()` replay, lease-before-execute step
   claiming, rollback, `parallel()`, `sideEffect()`, signals and timers
 - Resume protocol (`ResumableAction`) so a step can span more invocations than

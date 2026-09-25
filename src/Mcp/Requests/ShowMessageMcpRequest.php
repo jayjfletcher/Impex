@@ -13,6 +13,11 @@ use Laravel\Mcp\ResponseFactory;
 
 final class ShowMessageMcpRequest extends Request
 {
+    protected function authorize(): bool
+    {
+        return $this->allows('view', $this->message());
+    }
+
     protected function rules(): array
     {
         return ShowMessageAction::rules() + [
@@ -22,11 +27,16 @@ final class ShowMessageMcpRequest extends Request
 
     protected function handle(array $validated): ResponseFactory
     {
-        /** @var string $id */
-        $id = $validated['message'];
-
-        $message = app(ShowMessageAction::class)->execute(Message::query()->findOrFail($id));
+        $message = app(ShowMessageAction::class)->execute($this->message());
 
         return Response::structured((new MessageResource($message))->resolve());
+    }
+
+    private function message(): Message
+    {
+        /** @var string $id */
+        $id = $this->get('message');
+
+        return Message::query()->findOrFail($id);
     }
 }

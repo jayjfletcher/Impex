@@ -7,9 +7,15 @@ namespace JayI\Impex\Http\Requests;
 use Illuminate\Http\JsonResponse;
 use JayI\Impex\Actions\ListFlowsAction;
 use JayI\Impex\Http\Request;
+use JayI\Impex\Models\FlowOverride;
 
 final class IndexFlowsRequest extends Request
 {
+    public function authorize(): bool
+    {
+        return parent::authorize() && $this->allows('viewAny', FlowOverride::class);
+    }
+
     public function rules(): array
     {
         return ListFlowsAction::rules();

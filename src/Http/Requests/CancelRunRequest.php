@@ -10,6 +10,11 @@ use JayI\Impex\Http\Resources\RunResource;
 
 final class CancelRunRequest extends RunRequest
 {
+    public function authorize(): bool
+    {
+        return $this->allows('cancel', $this->run());
+    }
+
     public function rules(): array
     {
         return CancelRunAction::rules();

@@ -5,11 +5,14 @@ declare(strict_types=1);
 namespace JayI\Impex\Actions;
 
 use Illuminate\Contracts\Pagination\CursorPaginator;
+use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Validation\Rule;
 use JayI\Impex\Enums\Direction;
 use JayI\Impex\Events\Action\MessagesListedActionEvent;
 use JayI\Impex\Events\Action\MessagesListingActionEvent;
 use JayI\Impex\Models\Message;
+use JayI\Impex\Models\Run;
 
 final class ListMessagesAction
 {
@@ -31,26 +34,36 @@ final class ListMessagesAction
 
     /**
      * @param  array<string, mixed>  $filters
+     * @param  Model|null  $viewer  When given, only messages of runs they own.
      * @return CursorPaginator<int, Message>
      */
-    public function execute(array $filters = []): CursorPaginator
+    public function execute(array $filters = [], ?Model $viewer = null): CursorPaginator
     {
-        MessagesListingActionEvent::dispatch($filters);
+        MessagesListingActionEvent::dispatch($filters, $viewer);
 
-        $result = $this->perform($filters);
+        $result = $this->perform($filters, $viewer);
 
-        MessagesListedActionEvent::dispatch($result);
+        MessagesListedActionEvent::dispatch($result, $viewer);
 
         return $result;
     }
 
     /**
      * @param  array<string, mixed>  $filters
+     * @param  Model|null  $viewer  When given, only messages of runs they own.
      * @return CursorPaginator<int, Message>
      */
-    private function perform(array $filters = []): CursorPaginator
+    private function perform(array $filters = [], ?Model $viewer = null): CursorPaginator
     {
         $query = Message::query()->latest('occurred_at');
+
+        // A message with no run has no owner, so a viewer never sees it.
+        if ($viewer !== null) {
+            $query->whereHas('run', function (Builder $runs) use ($viewer): void {
+                /** @var Builder<Run> $runs */
+                $runs->whereOwnedBy($viewer);
+            });
+        }
 
         foreach (['direction' => 'direction', 'channel' => 'channel', 'run' => 'run_id'] as $filter => $column) {
             if (isset($filters[$filter])) {

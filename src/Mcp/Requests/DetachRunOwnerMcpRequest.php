@@ -10,6 +10,11 @@ use Laravel\Mcp\Response;
 
 final class DetachRunOwnerMcpRequest extends RunRequest
 {
+    protected function authorize(): bool
+    {
+        return $this->allows('delete', $this->owner());
+    }
+
     protected function rules(): array
     {
         return DetachRunOwnerAction::rules() + [
@@ -20,13 +25,16 @@ final class DetachRunOwnerMcpRequest extends RunRequest
 
     protected function handle(array $validated): Response
     {
-        /** @var string $ownerId */
-        $ownerId = $validated['owner'];
-
-        $owner = RunOwner::query()->findOrFail($ownerId);
-
-        app(DetachRunOwnerAction::class)->execute($this->run(), $owner);
+        app(DetachRunOwnerAction::class)->execute($this->run(), $this->owner());
 
         return Response::text('Owner detached.');
+    }
+
+    private function owner(): RunOwner
+    {
+        /** @var string $id */
+        $id = $this->get('owner');
+
+        return RunOwner::query()->findOrFail($id);
     }
 }

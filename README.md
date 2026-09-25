@@ -264,6 +264,14 @@ will consume the same Actions, so the two cannot drift.
 `impex.routes.middleware` is `['api']` — these endpoints trigger and cancel
 workflows and read every payload that has crossed the boundary.
 
+With `impex.authorization` on (the default), every API call and MCP tool acts as the
+authenticated user: they list only the runs they own, own the runs they start,
+and each call is checked against the model policies in `impex.policies`. By
+default a run's owners may do anything with it and its steps, owners, signals
+and messages follow it. Replace a policy by pointing its model at your own
+class. Set it to `false` only for a trusted operator surface. The inbound
+channel endpoints stay signature-authenticated, never user-authorized. See [Ownership](docs/08-ownership.md#authorizing-the-api).
+
 ## MCP
 
 The same operations over MCP as over HTTP. Both surfaces call one Action, so
@@ -483,11 +491,12 @@ Starting a flow is named `FlowRunningActionEvent` / `FlowRanActionEvent`, so it 
 | `DetachRunOwnerAction` | `RunOwnerDetachingActionEvent` (`run`, `owner`) | `RunOwnerDetachedActionEvent` (`run`, `ownerType`, `ownerId`, `role`) |
 | `ListChannelsAction` | `ChannelsListingActionEvent` (none) | `ChannelsListedActionEvent` (`channels`) |
 | `ListFlowsAction` | `FlowsListingActionEvent` (none) | `FlowsListedActionEvent` (`flows`) |
-| `ListMessagesAction` | `MessagesListingActionEvent` (`filters`) | `MessagesListedActionEvent` (`messages`) |
+| `ListMessagesAction` | `MessagesListingActionEvent` (`filters`, `viewer`) | `MessagesListedActionEvent` (`messages`, `viewer`) |
+| `ListRunOwnersAction` | `RunOwnersListingActionEvent` (`run`) | `RunOwnersListedActionEvent` (`run`, `owners`) |
 | `ListRunStepsAction` | `RunStepsListingActionEvent` (`run`, `filters`) | `RunStepsListedActionEvent` (`run`, `steps`) |
-| `ListRunsAction` | `RunsListingActionEvent` (`filters`) | `RunsListedActionEvent` (`runs`) |
+| `ListRunsAction` | `RunsListingActionEvent` (`filters`, `viewer`) | `RunsListedActionEvent` (`runs`, `viewer`) |
 | `RetryRunAction` | `RunRetryingActionEvent` (`run`) | `RunRetriedActionEvent` (`run`) |
-| `RunFlowAction` | `FlowRunningActionEvent` (`slug`, `data`, `trigger`) | `FlowRanActionEvent` (`run`) |
+| `RunFlowAction` | `FlowRunningActionEvent` (`slug`, `data`, `trigger`, `owner`) | `FlowRanActionEvent` (`run`) |
 | `ShowMessageAction` | `MessageShowingActionEvent` (`message`) | `MessageShownActionEvent` (`message`) |
 | `ShowRunAction` | `RunShowingActionEvent` (`run`) | `RunShownActionEvent` (`run`) |
 | `SignalRunAction` | `RunSignallingActionEvent` (`run`, `data`) | `RunSignalledActionEvent` (`run`, `signal`) |

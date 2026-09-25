@@ -11,6 +11,11 @@ use Laravel\Mcp\ResponseFactory;
 
 final class ShowRunMcpRequest extends RunRequest
 {
+    protected function authorize(): bool
+    {
+        return $this->allows('view', $this->run());
+    }
+
     protected function rules(): array
     {
         return ShowRunAction::rules() + [

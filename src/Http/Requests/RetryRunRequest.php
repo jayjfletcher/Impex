@@ -10,6 +10,11 @@ use JayI\Impex\Http\Resources\RunResource;
 
 final class RetryRunRequest extends RunRequest
 {
+    public function authorize(): bool
+    {
+        return $this->allows('retry', $this->run());
+    }
+
     public function rules(): array
     {
         return RetryRunAction::rules();

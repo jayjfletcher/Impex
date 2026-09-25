@@ -143,7 +143,13 @@ Or put a cron expression in `impex.schedule` keyed by slug. A row in
 Over HTTP, `POST impex/flows/{flow}/runs` answers `202` with the run. Over MCP,
 `run-flow` does the same — both call one Action. Add authentication middleware
 to `impex.routes.middleware` and `impex.mcp.web.middleware` before exposing
-either: they trigger and cancel workflows and read every recorded payload.
+either: they trigger and cancel workflows and read every recorded payload. With
+`impex.authorization` on (the default), both act as the signed-in user: they
+list only the runs that user owns, attach them as `owner` of runs they start,
+and check every call against the model policies in `impex.policies` (a run's
+owners may do anything; steps, owners, signals and messages follow the run).
+Replace a policy by pointing its model at your own class there. Inbound channel
+endpoints are signature-authenticated, never user-authorized.
 
 ### 8. Test it
 

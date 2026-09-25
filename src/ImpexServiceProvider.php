@@ -6,6 +6,7 @@ namespace JayI\Impex;
 
 use Atrium\Atrium\Facades\Atrium;
 use Illuminate\Console\Scheduling\Schedule;
+use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\ServiceProvider;
 use JayI\Impex\Atrium\ImpexPlugin;
 use JayI\Impex\Channels\ChannelRegistry;
@@ -86,6 +87,8 @@ class ImpexServiceProvider extends ServiceProvider
         // Cortex is optional: agents get the Impex tools only when it is loaded.
         $this->app->make(CortexIntegration::class)->register();
 
+        $this->registerPolicies();
+
         $this->registerRoutes();
 
         $this->registerAtriumPlugin();
@@ -129,6 +132,20 @@ class ImpexServiceProvider extends ServiceProvider
         ]);
 
         $this->registerSchedule();
+    }
+
+    /**
+     * Register each model's policy from `impex.policies`, so an application
+     * swaps one by pointing its model at another class there.
+     */
+    private function registerPolicies(): void
+    {
+        /** @var array<class-string, class-string> $policies */
+        $policies = $this->app->make('config')->get('impex.policies', []);
+
+        foreach ($policies as $model => $policy) {
+            Gate::policy($model, $policy);
+        }
     }
 
     /**

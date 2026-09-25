@@ -11,6 +11,11 @@ use Laravel\Mcp\ResponseFactory;
 
 final class RetryRunMcpRequest extends RunRequest
 {
+    protected function authorize(): bool
+    {
+        return $this->allows('retry', $this->run());
+    }
+
     protected function rules(): array
     {
         return RetryRunAction::rules() + [

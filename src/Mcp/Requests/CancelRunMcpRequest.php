@@ -11,6 +11,11 @@ use Laravel\Mcp\ResponseFactory;
 
 final class CancelRunMcpRequest extends RunRequest
 {
+    protected function authorize(): bool
+    {
+        return $this->allows('cancel', $this->run());
+    }
+
     protected function rules(): array
     {
         return CancelRunAction::rules() + [

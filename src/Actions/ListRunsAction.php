@@ -6,6 +6,7 @@ namespace JayI\Impex\Actions;
 
 use Illuminate\Contracts\Pagination\CursorPaginator;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Validation\Rule;
 use JayI\Impex\Enums\RunStatus;
 use JayI\Impex\Enums\RunTrigger;
@@ -37,26 +38,32 @@ final class ListRunsAction
 
     /**
      * @param  array<string, mixed>  $filters
+     * @param  Model|null  $viewer  When given, only the runs they own.
      * @return CursorPaginator<int, Run>
      */
-    public function execute(array $filters = []): CursorPaginator
+    public function execute(array $filters = [], ?Model $viewer = null): CursorPaginator
     {
-        RunsListingActionEvent::dispatch($filters);
+        RunsListingActionEvent::dispatch($filters, $viewer);
 
-        $result = $this->perform($filters);
+        $result = $this->perform($filters, $viewer);
 
-        RunsListedActionEvent::dispatch($result);
+        RunsListedActionEvent::dispatch($result, $viewer);
 
         return $result;
     }
 
     /**
      * @param  array<string, mixed>  $filters
+     * @param  Model|null  $viewer  When given, only the runs they own.
      * @return CursorPaginator<int, Run>
      */
-    private function perform(array $filters = []): CursorPaginator
+    private function perform(array $filters = [], ?Model $viewer = null): CursorPaginator
     {
         $query = Run::query()->latest('created_at');
+
+        if ($viewer !== null) {
+            $query->whereOwnedBy($viewer);
+        }
 
         if (isset($filters['status'])) {
             $query->where('status', $filters['status']);

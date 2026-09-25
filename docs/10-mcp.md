@@ -21,6 +21,10 @@ they cannot drift.
 **Add auth middleware to the web transport before enabling it.** The server
 triggers and cancels workflows and reads every recorded payload.
 
+With `impex.authorization` on, each tool acts as the authenticated user and
+checks the same policy ability as its HTTP endpoint; a denied call answers
+`Unauthorized.`. See [Ownership](08-ownership.md#authorizing-the-api).
+
 ## Tools
 
 | Tool | Action |

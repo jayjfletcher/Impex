@@ -106,6 +106,20 @@ exception naming it.
 run loses the payloads you would open it to read. Keep `artifacts_days` at or
 above the longest of the others. `impex:prune` deletes in dependency order.
 
+## `authorization`
+
+`true` by default: the JSON API and MCP tools act as the authenticated user —
+listing only the runs they own, making them the owner of runs they start, and
+checking every call against `impex.policies`. Set it to `false` only for a
+trusted operator surface, where the route middleware is the only check. The
+inbound channel endpoints are never user-authorized.
+
+## `policies`
+
+The policy the Gate uses for each model, keyed by model class. Point a model at
+your own class to replace its policy. See
+[Ownership](08-ownership.md#authorizing-the-api).
+
 ## `routes`
 
 | Key | Default |

@@ -12,6 +12,11 @@ use Laravel\Mcp\ResponseFactory;
 
 final class SignalRunMcpRequest extends RunRequest
 {
+    protected function authorize(): bool
+    {
+        return $this->allows('create', Signal::class, [$this->run()]);
+    }
+
     protected function rules(): array
     {
         return SignalRunAction::rules() + [

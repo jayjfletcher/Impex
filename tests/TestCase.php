@@ -28,6 +28,8 @@ abstract class TestCase extends Orchestra
         $app['config']->set('app.key', 'base64:'.base64_encode(str_repeat('a', 32)));
         $app['config']->set('database.default', 'testing');
         $app['config']->set('database.connections.testing.foreign_key_constraints', true);
+        // Surface tests cover behaviour; PolicyTest turns authorization on.
+        $app['config']->set('impex.authorization', false);
         $app['config']->set('cache.default', 'array');
         $app['config']->set('impex.cache.store', 'array');
         $app['config']->set('filesystems.default', 'local');

@@ -12,6 +12,13 @@
 **Add authentication middleware before exposing these.** They trigger and cancel
 workflows and read every payload that has crossed the boundary.
 
+With `impex.authorization` on (the default), every call is also checked against
+the model policies in `impex.policies`: each user sees only the runs they own, owns
+the runs they start, and is refused anything their policy denies. See
+[Ownership](08-ownership.md#authorizing-the-api) for the ability each endpoint
+checks. The inbound channel endpoints are never user-authorized: they
+authenticate with the channel's signing secret.
+
 Every endpoint is one line of controller: validation rules come from an Action's
 static `rules()`, and the request's `persist()` calls that same Action. The MCP
 surface calls the same Actions, so the two cannot drift.

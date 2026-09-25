@@ -11,6 +11,11 @@ use JayI\Impex\Models\Signal;
 
 final class StoreRunSignalRequest extends RunRequest
 {
+    public function authorize(): bool
+    {
+        return $this->allows('create', Signal::class, [$this->run()]);
+    }
+
     public function rules(): array
     {
         return SignalRunAction::rules();
