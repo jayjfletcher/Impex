@@ -13,6 +13,7 @@ use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Storage;
 use JayI\Impex\Database\Factories\ArtifactFactory;
 use JayI\Impex\Enums\ArtifactKind;
+use JayI\Impex\Models\Concerns\DispatchesModelEvents;
 
 /**
  * @property string $id
@@ -31,6 +32,8 @@ use JayI\Impex\Enums\ArtifactKind;
  */
 final class Artifact extends Model
 {
+    use DispatchesModelEvents;
+
     /** @use HasFactory<ArtifactFactory> */
     use HasFactory;
 

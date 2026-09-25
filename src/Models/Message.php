@@ -13,6 +13,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Support\Carbon;
 use JayI\Impex\Database\Factories\MessageFactory;
 use JayI\Impex\Enums\Direction;
+use JayI\Impex\Models\Concerns\DispatchesModelEvents;
 
 /**
  * @property string $id
@@ -36,6 +37,8 @@ use JayI\Impex\Enums\Direction;
  */
 final class Message extends Model
 {
+    use DispatchesModelEvents;
+
     /** @use HasFactory<MessageFactory> */
     use HasFactory;
 

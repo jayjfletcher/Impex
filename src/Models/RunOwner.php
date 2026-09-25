@@ -9,6 +9,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\MorphTo;
 use Illuminate\Support\Carbon;
+use JayI\Impex\Models\Concerns\DispatchesModelEvents;
 
 /**
  * @property string $id
@@ -21,6 +22,7 @@ use Illuminate\Support\Carbon;
  */
 final class RunOwner extends Model
 {
+    use DispatchesModelEvents;
     use HasUlids;
 
     protected $table = 'impex_run_owners';

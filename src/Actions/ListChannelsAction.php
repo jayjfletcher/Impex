@@ -6,6 +6,8 @@ namespace JayI\Impex\Actions;
 
 use JayI\Impex\Channels\ChannelConfig;
 use JayI\Impex\Channels\ChannelRegistry;
+use JayI\Impex\Events\Action\ChannelsListedActionEvent;
+use JayI\Impex\Events\Action\ChannelsListingActionEvent;
 
 final class ListChannelsAction
 {
@@ -23,6 +25,20 @@ final class ListChannelsAction
      * @return array<int, array<string, mixed>>
      */
     public function execute(): array
+    {
+        ChannelsListingActionEvent::dispatch();
+
+        $result = $this->perform();
+
+        ChannelsListedActionEvent::dispatch($result);
+
+        return $result;
+    }
+
+    /**
+     * @return array<int, array<string, mixed>>
+     */
+    private function perform(): array
     {
         return array_values(array_map(fn (ChannelConfig $channel): array => [
             'name' => $channel->name,

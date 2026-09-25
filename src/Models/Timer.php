@@ -10,6 +10,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Support\Carbon;
 use JayI\Impex\Enums\StepPhase;
 use JayI\Impex\Enums\TimerKind;
+use JayI\Impex\Models\Concerns\DispatchesModelEvents;
 
 /**
  * @property string $id
@@ -24,6 +25,7 @@ use JayI\Impex\Enums\TimerKind;
  */
 final class Timer extends Model
 {
+    use DispatchesModelEvents;
     use HasUlids;
 
     protected $table = 'impex_timers';

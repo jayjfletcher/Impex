@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace JayI\Impex\Actions;
 
+use JayI\Impex\Events\Action\RunCancelledActionEvent;
+use JayI\Impex\Events\Action\RunCancellingActionEvent;
 use JayI\Impex\Impex;
 use JayI\Impex\Models\Run;
 
@@ -25,6 +27,20 @@ final class CancelRunAction
      * @param  array<string, mixed>  $data
      */
     public function execute(Run $run, array $data = []): Run
+    {
+        RunCancellingActionEvent::dispatch($run, is_string($data['reason'] ?? null) ? $data['reason'] : null);
+
+        $result = $this->perform($run, $data);
+
+        RunCancelledActionEvent::dispatch($result);
+
+        return $result;
+    }
+
+    /**
+     * @param  array<string, mixed>  $data
+     */
+    private function perform(Run $run, array $data = []): Run
     {
         /** @var string|null $reason */
         $reason = $data['reason'] ?? null;

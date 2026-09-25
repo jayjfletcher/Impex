@@ -288,6 +288,29 @@ schema: that `run-flow` is asynchronous and `show-run` must be polled, that a
 `waiting` run is blocked on a signal, and that payloads are never inlined in
 listings.
 
+## Cortex
+
+When [`jayi/cortex`](https://github.com/jayjfletcher/cortex) is installed, Impex connects its MCP server to it. Nothing needs registering in your app.
+
+- **Agents can run workflows.** Every Impex MCP tool joins Cortex's tool registry under its own name (`list-runs-tool`, `run-flow-tool`, `signal-run-tool`, ...), so an agent can start, inspect and control runs.
+- **Instructions and descriptions can change without a deploy.** The server is registered with Cortex as `impex`, so its instructions get Cortex's versioned, publishable overrides, and so does each tool's description. Published overrides are served both to MCP clients (for example at `/mcp/impex`) and to agents.
+
+```php
+// config/impex.php
+'cortex' => [
+    'enabled' => true,      // false leaves Cortex alone
+    'server' => 'impex',    // the server's name in Cortex
+    'tools' => null,        // null for every tool, or a list of names
+],
+```
+
+About how it works:
+
+- **Optional:** Cortex is not a dependency. Without it nothing Cortex-related loads.
+- **Lazy:** registration happens the first time Cortex's registries are used.
+- **Your config wins:** a name already registered with Cortex, for example in your own `config/cortex.php`, is left alone.
+- **Tool list from the server:** the tools come from `ImpexServer::TOOLS`, which is also the catalog the server serves, so a tool added to Impex reaches Cortex without any change in your app.
+
 ## Dashboard
 
 Impex renders its dashboard through [Atrium](https://github.com/jayi/atrium), which it requires. Define Atrium's gate and Impex appears in the sidebar:
@@ -415,6 +438,72 @@ Impex::run('extract-products', [$query], owners: [
 
 Run::query()->whereOwnedBy($customer)->active()->get();
 Run::query()->whereOwnedByAny([$team, $user])->get();
+```
+
+## Events
+
+Impex fires three families of events:
+
+- **Engine events** describe what a run does as it executes: `RunStarted`, `RunCompleted`, `RunFailed`, `StepCompleted`, `StepFailed` and `MessageRecorded`.
+- **Model events** fire for every Eloquent lifecycle hook of every Impex model, one class per hook.
+- **Action events** are a start and a finish event for every action, whether it runs from code, the HTTP API, MCP, a Cortex agent or the dashboard.
+
+### Model events
+
+Every model fires `retrieved`, `creating`, `created`, `updating`, `updated`, `saving`, `saved`, `deleting`, `deleted` and `replicating`:
+
+- **Models:** `Run`, `RunStep`, `RunOwner`, `Artifact`, `Batch`, `BatchItem`, `Message`, `Signal`, `Timer`, `FlowOverride`.
+- **Naming:** they live in `JayI\Impex\Events\Model` and are named `{Model}{Hook}Event`, e.g. `RunCreatingEvent` or `RunStepCreatedEvent`.
+- **Payload:** the model is a typed property (`$event->run`, `$event->runStep`, ...) and is also available as `$event->model()`, alongside `$event->hook()`.
+- **Timing:** they fire synchronously, as Eloquent's own do. A `creating`, `updating`, `saving` or `deleting` listener that returns `false` stops the write.
+
+Some engine writes are atomic query-builder updates, so that two workers can never both win. Eloquent does not turn those statements into model events. They are:
+
+- claiming (leasing) a step or batch item, and releasing it
+- failing steps whose deadline has passed
+- firing due timers in bulk
+
+Everything else, including run status changes and recording a step's outcome, goes through Eloquent and fires model events. For the moments the atomic updates cover, listen to the engine events instead.
+
+### Action events
+
+Every action dispatches two events:
+
+- **Start:** `…ingActionEvent`, before any work. It carries the input.
+- **Finish:** `…edActionEvent`, after the surrounding transaction commits and only on success. It carries the result.
+
+An action that throws fires its start event only.
+
+Starting a flow is named `FlowRunningActionEvent` / `FlowRanActionEvent`, so it does not clash with the engine's `RunStarted`. `FlowRan` marks the run being accepted. `RunStarted` marks it actually beginning, later, on the queue.
+
+| Action | Start (carries) | Finish (carries) |
+| --- | --- | --- |
+| `AttachRunOwnerAction` | `RunOwnerAttachingActionEvent` (`run`, `data`) | `RunOwnerAttachedActionEvent` (`run`, `owner`) |
+| `CancelRunAction` | `RunCancellingActionEvent` (`run`, `reason`) | `RunCancelledActionEvent` (`run`) |
+| `DetachRunOwnerAction` | `RunOwnerDetachingActionEvent` (`run`, `owner`) | `RunOwnerDetachedActionEvent` (`run`, `ownerType`, `ownerId`, `role`) |
+| `ListChannelsAction` | `ChannelsListingActionEvent` (none) | `ChannelsListedActionEvent` (`channels`) |
+| `ListFlowsAction` | `FlowsListingActionEvent` (none) | `FlowsListedActionEvent` (`flows`) |
+| `ListMessagesAction` | `MessagesListingActionEvent` (`filters`) | `MessagesListedActionEvent` (`messages`) |
+| `ListRunStepsAction` | `RunStepsListingActionEvent` (`run`, `filters`) | `RunStepsListedActionEvent` (`run`, `steps`) |
+| `ListRunsAction` | `RunsListingActionEvent` (`filters`) | `RunsListedActionEvent` (`runs`) |
+| `RetryRunAction` | `RunRetryingActionEvent` (`run`) | `RunRetriedActionEvent` (`run`) |
+| `RunFlowAction` | `FlowRunningActionEvent` (`slug`, `data`, `trigger`) | `FlowRanActionEvent` (`run`) |
+| `ShowMessageAction` | `MessageShowingActionEvent` (`message`) | `MessageShownActionEvent` (`message`) |
+| `ShowRunAction` | `RunShowingActionEvent` (`run`) | `RunShownActionEvent` (`run`) |
+| `SignalRunAction` | `RunSignallingActionEvent` (`run`, `data`) | `RunSignalledActionEvent` (`run`, `signal`) |
+
+### Listening to a whole family
+
+Listen to an interface in `JayI\Impex\Contracts` to receive every event of that family:
+
+| Interface | Receives |
+| --- | --- |
+| `ModelLifecycleEvent` | every model event |
+| `ActionStartingEvent` | every action start |
+| `ActionFinishedEvent` | every action finish |
+
+```php
+Event::listen(ActionFinishedEvent::class, fn (ActionFinishedEvent $event) => Log::info(class_basename($event)));
 ```
 
 ## Vapor notes

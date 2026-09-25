@@ -9,6 +9,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Support\Carbon;
 use JayI\Impex\Enums\StepStatus;
+use JayI\Impex\Models\Concerns\DispatchesModelEvents;
 
 /**
  * @property string $id
@@ -26,6 +27,7 @@ use JayI\Impex\Enums\StepStatus;
  */
 final class BatchItem extends Model
 {
+    use DispatchesModelEvents;
     use HasUlids;
 
     protected $table = 'impex_batch_items';

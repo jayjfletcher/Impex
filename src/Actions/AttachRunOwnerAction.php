@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace JayI\Impex\Actions;
 
+use JayI\Impex\Events\Action\RunOwnerAttachedActionEvent;
+use JayI\Impex\Events\Action\RunOwnerAttachingActionEvent;
 use JayI\Impex\Models\Run;
 use JayI\Impex\Models\RunOwner;
 
@@ -25,6 +27,20 @@ final class AttachRunOwnerAction
      * @param  array<string, mixed>  $data
      */
     public function execute(Run $run, array $data): RunOwner
+    {
+        RunOwnerAttachingActionEvent::dispatch($run, $data);
+
+        $result = $this->perform($run, $data);
+
+        RunOwnerAttachedActionEvent::dispatch($run, $result);
+
+        return $result;
+    }
+
+    /**
+     * @param  array<string, mixed>  $data
+     */
+    private function perform(Run $run, array $data): RunOwner
     {
         /** @var RunOwner $owner */
         $owner = $run->owners()->firstOrCreate([

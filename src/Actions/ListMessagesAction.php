@@ -7,6 +7,8 @@ namespace JayI\Impex\Actions;
 use Illuminate\Contracts\Pagination\CursorPaginator;
 use Illuminate\Validation\Rule;
 use JayI\Impex\Enums\Direction;
+use JayI\Impex\Events\Action\MessagesListedActionEvent;
+use JayI\Impex\Events\Action\MessagesListingActionEvent;
 use JayI\Impex\Models\Message;
 
 final class ListMessagesAction
@@ -32,6 +34,21 @@ final class ListMessagesAction
      * @return CursorPaginator<int, Message>
      */
     public function execute(array $filters = []): CursorPaginator
+    {
+        MessagesListingActionEvent::dispatch($filters);
+
+        $result = $this->perform($filters);
+
+        MessagesListedActionEvent::dispatch($result);
+
+        return $result;
+    }
+
+    /**
+     * @param  array<string, mixed>  $filters
+     * @return CursorPaginator<int, Message>
+     */
+    private function perform(array $filters = []): CursorPaginator
     {
         $query = Message::query()->latest('occurred_at');
 

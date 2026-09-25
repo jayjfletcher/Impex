@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace JayI\Impex\Actions;
 
+use JayI\Impex\Events\Action\RunSignalledActionEvent;
+use JayI\Impex\Events\Action\RunSignallingActionEvent;
 use JayI\Impex\Impex;
 use JayI\Impex\Models\Run;
 use JayI\Impex\Models\Signal;
@@ -34,6 +36,25 @@ final class SignalRunAction
      * @param  array<string, mixed>  $data
      */
     public function execute(Run $run, array $data): ?Signal
+    {
+        RunSignallingActionEvent::dispatch($run, $data);
+
+        $result = $this->perform($run, $data);
+
+        RunSignalledActionEvent::dispatch($run, $result);
+
+        return $result;
+    }
+
+    /**
+     * Deliver the signal.
+     *
+     * Returns null when `if_running` was set and the run had already finished —
+     * a no-op the caller asked for, rather than a conflict.
+     *
+     * @param  array<string, mixed>  $data
+     */
+    private function perform(Run $run, array $data): ?Signal
     {
         /** @var string $name */
         $name = $data['name'];

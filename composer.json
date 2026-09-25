@@ -26,6 +26,8 @@
         "jayi/atrium": "dev-main"
     },
     "require-dev": {
+        "dedoc/scramble": "^0.13.45",
+        "jayi/cortex": "dev-main",
         "larastan/larastan": "^3.12",
         "laravel/pao": "^1.0",
         "laravel/pint": "^1.29",
@@ -33,8 +35,10 @@
         "pestphp/pest": "^5.0",
         "pestphp/pest-plugin-laravel": "^5.0",
         "pestphp/pest-plugin-type-coverage": "^5.0.2",
-        "phpstan/extension-installer": "^1.4",
-        "dedoc/scramble": "^0.13.45"
+        "phpstan/extension-installer": "^1.4"
+    },
+    "suggest": {
+        "jayi/cortex": "Let Cortex agents use the Impex tools and manage the MCP instructions and tool descriptions (dev-main)."
     },
     "autoload": {
         "psr-4": {
@@ -122,6 +126,10 @@
         {
             "type": "vcs",
             "url": "https://github.com/jayjfletcher/Atrium.git"
+        },
+        {
+            "type": "vcs",
+            "url": "https://github.com/jayjfletcher/cortex.git"
         }
     ]
 }

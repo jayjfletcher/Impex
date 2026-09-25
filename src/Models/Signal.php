@@ -8,6 +8,7 @@ use Illuminate\Database\Eloquent\Concerns\HasUlids;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Support\Carbon;
+use JayI\Impex\Models\Concerns\DispatchesModelEvents;
 
 /**
  * @property string $id
@@ -22,6 +23,7 @@ use Illuminate\Support\Carbon;
  */
 final class Signal extends Model
 {
+    use DispatchesModelEvents;
     use HasUlids;
 
     protected $table = 'impex_signals';

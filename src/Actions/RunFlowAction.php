@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace JayI\Impex\Actions;
 
 use JayI\Impex\Enums\RunTrigger;
+use JayI\Impex\Events\Action\FlowRanActionEvent;
+use JayI\Impex\Events\Action\FlowRunningActionEvent;
 use JayI\Impex\Exceptions\DisabledFlowException;
 use JayI\Impex\Flows\FlowRegistry;
 use JayI\Impex\Impex;
@@ -39,6 +41,20 @@ final class RunFlowAction
      * @param  array<string, mixed>  $data
      */
     public function execute(string $slug, array $data = [], RunTrigger $trigger = RunTrigger::Api): Run
+    {
+        FlowRunningActionEvent::dispatch($slug, $data, $trigger);
+
+        $result = $this->perform($slug, $data, $trigger);
+
+        FlowRanActionEvent::dispatch($result);
+
+        return $result;
+    }
+
+    /**
+     * @param  array<string, mixed>  $data
+     */
+    private function perform(string $slug, array $data = [], RunTrigger $trigger = RunTrigger::Api): Run
     {
         if (! $this->flows->enabled($slug)) {
             throw DisabledFlowException::slug($slug);

@@ -13,6 +13,7 @@ use JayI\Impex\Database\Factories\RunStepFactory;
 use JayI\Impex\Enums\StepPhase;
 use JayI\Impex\Enums\StepStatus;
 use JayI\Impex\Enums\StepType;
+use JayI\Impex\Models\Concerns\DispatchesModelEvents;
 
 /**
  * @property string $id
@@ -44,6 +45,8 @@ use JayI\Impex\Enums\StepType;
  */
 final class RunStep extends Model
 {
+    use DispatchesModelEvents;
+
     /** @use HasFactory<RunStepFactory> */
     use HasFactory;
 

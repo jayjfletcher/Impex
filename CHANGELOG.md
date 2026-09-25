@@ -4,6 +4,11 @@
 
 ### Added
 
+- Cortex integration: when `jayi/cortex` is installed, the MCP server registers with it as `impex` and every tool joins its tool registry, so agents can use them. Published instruction and tool description overrides are served to MCP clients and agents. Configured under `impex.cortex`; Cortex stays optional.
+- `ImpexServer::TOOLS`, the server's tool catalog as a flat list.
+- Model events: every model fires a class-based event for each Eloquent hook (`RunCreatingEvent`, `RunStepCreatedEvent`, ...), mapped by the `DispatchesModelEvents` trait.
+- Action events: every action fires a start event before its work and a finish event after commit, on success (`FlowRunningActionEvent` / `FlowRanActionEvent`, ...).
+- `ModelLifecycleEvent`, `ActionStartingEvent` and `ActionFinishedEvent` contracts, to listen to a whole family at once.
 - Replay engine: deterministic `handle()` replay, lease-before-execute step
   claiming, rollback, `parallel()`, `sideEffect()`, signals and timers
 - Resume protocol (`ResumableAction`) so a step can span more invocations than

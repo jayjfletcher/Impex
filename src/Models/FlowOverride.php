@@ -7,6 +7,7 @@ namespace JayI\Impex\Models;
 use Illuminate\Database\Eloquent\Concerns\HasUlids;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Carbon;
+use JayI\Impex\Models\Concerns\DispatchesModelEvents;
 
 /**
  * A runtime override for a registered flow.
@@ -26,6 +27,7 @@ use Illuminate\Support\Carbon;
  */
 final class FlowOverride extends Model
 {
+    use DispatchesModelEvents;
     use HasUlids;
 
     protected $table = 'impex_flows';

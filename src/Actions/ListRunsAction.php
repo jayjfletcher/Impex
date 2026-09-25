@@ -9,6 +9,8 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Validation\Rule;
 use JayI\Impex\Enums\RunStatus;
 use JayI\Impex\Enums\RunTrigger;
+use JayI\Impex\Events\Action\RunsListedActionEvent;
+use JayI\Impex\Events\Action\RunsListingActionEvent;
 use JayI\Impex\Models\Run;
 
 final class ListRunsAction
@@ -38,6 +40,21 @@ final class ListRunsAction
      * @return CursorPaginator<int, Run>
      */
     public function execute(array $filters = []): CursorPaginator
+    {
+        RunsListingActionEvent::dispatch($filters);
+
+        $result = $this->perform($filters);
+
+        RunsListedActionEvent::dispatch($result);
+
+        return $result;
+    }
+
+    /**
+     * @param  array<string, mixed>  $filters
+     * @return CursorPaginator<int, Run>
+     */
+    private function perform(array $filters = []): CursorPaginator
     {
         $query = Run::query()->latest('created_at');
 

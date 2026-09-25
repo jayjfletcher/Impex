@@ -232,6 +232,25 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Cortex
+    |--------------------------------------------------------------------------
+    |
+    | When jayi/cortex is installed, the MCP server is registered with it, so
+    | its instructions can be overridden, and the tools join its registry,
+    | so Cortex agents can run and inspect workflows. Set `tools` to a list
+    | of tool names, such as ['list-runs-tool', 'show-run-tool'], to offer
+    | only some of them.
+    |
+    */
+
+    'cortex' => [
+        'enabled' => true,
+        'server' => 'impex',
+        'tools' => null,
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
     | Dashboard UI
     |--------------------------------------------------------------------------
     |

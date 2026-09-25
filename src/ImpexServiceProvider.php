@@ -15,6 +15,7 @@ use JayI\Impex\Console\Commands\RunFlowCommand;
 use JayI\Impex\Console\Commands\SignalCommand;
 use JayI\Impex\Console\Commands\TickCommand;
 use JayI\Impex\Contracts\RollbackStrategy;
+use JayI\Impex\Cortex\CortexIntegration;
 use JayI\Impex\Flows\FlowRegistry;
 use JayI\Impex\Mcp\ImpexServer;
 use JayI\Impex\Runtime\BatchRunner;
@@ -82,6 +83,9 @@ class ImpexServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
+        // Cortex is optional: agents get the Impex tools only when it is loaded.
+        $this->app->make(CortexIntegration::class)->register();
+
         $this->registerRoutes();
 
         $this->registerAtriumPlugin();

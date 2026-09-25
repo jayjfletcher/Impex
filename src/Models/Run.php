@@ -17,6 +17,7 @@ use JayI\Impex\Enums\ChildClosePolicy;
 use JayI\Impex\Enums\RunStatus;
 use JayI\Impex\Enums\RunTrigger;
 use JayI\Impex\Enums\StepPhase;
+use JayI\Impex\Models\Concerns\DispatchesModelEvents;
 
 /**
  * @property string $id
@@ -45,6 +46,8 @@ use JayI\Impex\Enums\StepPhase;
  */
 final class Run extends Model
 {
+    use DispatchesModelEvents;
+
     /** @use HasFactory<RunFactory> */
     use HasFactory;
 

@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use JayI\Impex\Mcp\ImpexServer;
+use JayI\Impex\Tests\CortexTestCase;
 use JayI\Impex\Tests\TestCase;
 use Laravel\Mcp\Request;
 use Laravel\Mcp\Server\Testing\TestResponse;
@@ -11,6 +12,7 @@ use Laravel\Mcp\Server\Transport\FakeTransporter;
 use Laravel\Mcp\Transport\JsonRpcResponse;
 
 uses(TestCase::class)->in('Feature', 'Unit');
+uses(CortexTestCase::class)->in('Cortex');
 
 /**
  * Call a catalog tool the way a client must now reach it.

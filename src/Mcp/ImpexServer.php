@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace JayI\Impex\Mcp;
 
+use JayI\Impex\Cortex\CortexIntegration;
 use JayI\Impex\Mcp\Tools\AttachRunOwnerTool;
 use JayI\Impex\Mcp\Tools\CancelRunTool;
 use JayI\Impex\Mcp\Tools\DetachRunOwnerTool;
@@ -22,6 +23,7 @@ use Laravel\Mcp\Server;
 use Laravel\Mcp\Server\Attributes\Instructions;
 use Laravel\Mcp\Server\Attributes\Name;
 use Laravel\Mcp\Server\Attributes\Version;
+use Laravel\Mcp\Server\ServerContext;
 use Laravel\Mcp\Server\Tool;
 use Laravel\Mcp\Server\Tools\ToolSearch;
 
@@ -40,33 +42,57 @@ use Laravel\Mcp\Server\Tools\ToolSearch;
 final class ImpexServer extends Server
 {
     /**
+     * Every tool the server offers, behind ToolSearch. Also registered with
+     * Cortex when it is installed.
+     *
+     * @var array<int, class-string<Tool>>
+     */
+    public const array TOOLS = [
+        // Flows
+        ListFlowsTool::class,
+        RunFlowTool::class,
+
+        // Runs
+        ListRunsTool::class,
+        ShowRunTool::class,
+        CancelRunTool::class,
+        RetryRunTool::class,
+
+        // Run detail
+        ListRunStepsTool::class,
+        SignalRunTool::class,
+
+        // Ownership
+        ListRunOwnersTool::class,
+        AttachRunOwnerTool::class,
+        DetachRunOwnerTool::class,
+
+        // Ledger
+        ListMessagesTool::class,
+        ShowMessageTool::class,
+        ListChannelsTool::class,
+    ];
+
+    /**
      * @var array<class-string<ToolSearch>, array<int, class-string<Tool>|Tool>>
      */
     protected array $tools = [
-        ToolSearch::class => [
-            // Flows
-            ListFlowsTool::class,
-            RunFlowTool::class,
-
-            // Runs
-            ListRunsTool::class,
-            ShowRunTool::class,
-            CancelRunTool::class,
-            RetryRunTool::class,
-
-            // Run detail
-            ListRunStepsTool::class,
-            SignalRunTool::class,
-
-            // Ownership
-            ListRunOwnersTool::class,
-            AttachRunOwnerTool::class,
-            DetachRunOwnerTool::class,
-
-            // Ledger
-            ListMessagesTool::class,
-            ShowMessageTool::class,
-            ListChannelsTool::class,
-        ],
+        ToolSearch::class => self::TOOLS,
     ];
+
+    /**
+     * Serve Cortex's published instructions override, when Cortex is
+     * installed and one is published, in place of the ones declared above.
+     */
+    public function createContext(): ServerContext
+    {
+        $context = parent::createContext();
+        $override = app(CortexIntegration::class)->instructions();
+
+        if ($override !== null) {
+            $context->instructions = $override;
+        }
+
+        return $context;
+    }
 }
